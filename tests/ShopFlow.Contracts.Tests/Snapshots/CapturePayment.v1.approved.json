@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "paymentId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "amount": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$"
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ]
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "paymentId",
+    "amount"
+  ]
+}

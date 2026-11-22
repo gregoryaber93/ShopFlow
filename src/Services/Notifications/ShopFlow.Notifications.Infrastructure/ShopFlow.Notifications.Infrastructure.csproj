@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Notifications.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Notifications.Application\ShopFlow.Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Azure\ShopFlow.Azure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Observability\ShopFlow.Observability.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Persistence.Cosmos\ShopFlow.Persistence.Cosmos.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Resilience\ShopFlow.Resilience.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Communication.Email" />
+    <PackageReference Include="Azure.Communication.Sms" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShopFlow.Notifications.UnitTests" />
+  </ItemGroup>
+
+</Project>

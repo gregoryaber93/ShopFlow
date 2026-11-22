@@ -1,0 +1,50 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "invoiceNumber": {
+      "type": "string"
+    },
+    "total": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$"
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ]
+    },
+    "blobPath": {
+      "type": "string"
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "invoiceNumber",
+    "total",
+    "blobPath",
+    "issuedAt"
+  ]
+}

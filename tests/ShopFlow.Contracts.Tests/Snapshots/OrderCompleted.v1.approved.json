@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "orderNumber": {
+      "type": "string"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "orderNumber",
+    "completedAt"
+  ]
+}

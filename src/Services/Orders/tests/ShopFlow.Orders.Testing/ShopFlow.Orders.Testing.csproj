@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared fakes for Orders unit and component tests. This is not a test project
+       (its name does not end with .Tests), so it does not get the xUnit packages. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\ShopFlow.Orders.Application\ShopFlow.Orders.Application.csproj" />
+  </ItemGroup>
+
+</Project>

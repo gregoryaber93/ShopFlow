@@ -1,0 +1,57 @@
+name: Deploy Container App
+description: A new revision with the image from this release; waits until the revision is healthy.
+
+inputs:
+  app-name:
+    required: true
+  resource-group:
+    required: true
+  image:
+    description: Full image name with the tag (commit SHA).
+    required: true
+  timeout-minutes:
+    default: '10'
+
+runs:
+  using: composite
+  steps:
+    # AZURE: changing the image creates a new revision. In Single mode the platform switches traffic only once the new revision
+    # passes the readiness probes (/health/ready), and deactivates the old one after the switch. A revision that does not come
+    # up gets no traffic, and the old one keeps running. Blue-green with manual percentage switching requires Multiple mode
+    # and revision labels; Single is enough here, because the smoke test in app mode checks the new version after the switch.
+    # The call goes through Azure Resource Manager, so it needs no network access to the application.
+    - name: Update image
+      id: update
+      shell: bash
+      run: |
+        # A suffix with the run number and attempt: re-running the job does not collide with an existing revision name.
+        suffix="r${{ github.run_number }}-${{ github.run_attempt }}"
+        az containerapp update --name "${{ inputs.app-name }}" --resource-group "${{ inputs.resource-group }}" \
+          --image "${{ inputs.image }}" --revision-suffix "$suffix" --output none
+        echo "revision=${{ inputs.app-name }}--$suffix" >> "$GITHUB_OUTPUT"
+
+    - name: Wait for healthy revision
+      shell: bash
+      run: |
+        revision="${{ steps.update.outputs.revision }}"
+        deadline=$(( $(date +%s) + ${{ inputs.timeout-minutes }} * 60 ))
+        while [ "$(date +%s)" -lt "$deadline" ]; do
+          read -r provisioning health < <(az containerapp revision show --name "${{ inputs.app-name }}" \
+            --resource-group "${{ inputs.resource-group }}" --revision "$revision" \
+            --query "[properties.provisioningState, properties.healthState]" --output tsv | tr '\n' ' ')
+          echo "$revision: provisioning=$provisioning health=$health"
+          if [ "$provisioning" = "Failed" ] || [ "$health" = "Unhealthy" ]; then
+            echo "::error title=Container Apps::Revision $revision: $provisioning/$health. Traffic stayed on the previous revision."
+            exit 1
+          fi
+          # latestReadyRevisionName points at the new revision once it is ready. This also covers a worker scaled to zero
+          # (no messages in the queue = zero replicas), for which replica health state does not exist.
+          ready=$(az containerapp show --name "${{ inputs.app-name }}" --resource-group "${{ inputs.resource-group }}" \
+            --query properties.latestReadyRevisionName --output tsv)
+          if [ "$ready" = "$revision" ]; then
+            exit 0
+          fi
+          sleep 15
+        done
+        echo "::error title=Container Apps::Revision $revision is not ready after ${{ inputs.timeout-minutes }} min."
+        exit 1

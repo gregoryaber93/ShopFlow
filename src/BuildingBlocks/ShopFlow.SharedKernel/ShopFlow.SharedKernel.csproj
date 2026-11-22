@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WHY: zero package dependencies. This is the only library Domain projects may reference,
+       so any dependency here would become a dependency of every domain. -->
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.SharedKernel</RootNamespace>
+  </PropertyGroup>
+
+</Project>

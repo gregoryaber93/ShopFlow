@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Inventory.Domain</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

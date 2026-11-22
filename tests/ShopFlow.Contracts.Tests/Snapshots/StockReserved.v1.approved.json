@@ -1,0 +1,59 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "reservationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "warehouseCode": {
+      "type": "string"
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          }
+        },
+        "required": [
+          "sku",
+          "quantity"
+        ]
+      }
+    },
+    "reservedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "reservationId",
+    "warehouseCode",
+    "lines",
+    "reservedAt",
+    "expiresAt"
+  ]
+}

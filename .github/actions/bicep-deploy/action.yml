@@ -1,0 +1,76 @@
+name: Bicep deploy
+description: What-if and deployment of infra/main.bicep for one environment (subscription scope).
+
+inputs:
+  environment:
+    description: dev, test or prod (the infra/parameters/<env>.bicepparam file name).
+    required: true
+  location:
+    description: Region of the subscription-scope deployment object (metadata, not the resource region).
+    default: westeurope
+  image-tag:
+    description: Image tag for container applications that do not exist yet (commit SHA).
+    required: true
+  apim-private-only:
+    description: "'true' after the Private Link connections from Front Door to APIM are approved."
+    default: 'false'
+
+outputs:
+  api-host-name:
+    description: The API host name in Front Door.
+    value: ${{ steps.deploy.outputs.api-host-name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve running image tags
+      shell: bash
+      run: |
+        tags=$(bash "$GITHUB_WORKSPACE/.github/scripts/current-image-tags.sh" "rg-shopflow-${{ inputs.environment }}-weu-apps")
+        echo "IMAGE_TAGS=$tags" >> "$GITHUB_ENV"
+        echo "Running images: $tags"
+
+    # AZURE: what-if shows what the deployment will create, change or delete, without making changes. The result goes into
+    # the job summary as a record of what the deployment changed (the pre-merge preview comes from infra-validate.yml in the pull request).
+    # --exclude-change-types leaves out unchanged resources and those what-if cannot evaluate.
+    - name: What-if
+      shell: bash
+      env:
+        IMAGE_TAG: ${{ inputs.image-tag }}
+        APIM_PRIVATE_ONLY: ${{ inputs.apim-private-only }}
+      run: |
+        az deployment sub what-if \
+          --name "shopflow-${{ inputs.environment }}-${{ github.run_id }}" \
+          --location "${{ inputs.location }}" \
+          --template-file infra/main.bicep \
+          --parameters "infra/parameters/${{ inputs.environment }}.bicepparam" \
+          --exclude-change-types NoChange Ignore \
+          --no-pretty-print --result-format ResourceIdOnly > what-if.json
+        {
+          echo "### What-if: ${{ inputs.environment }}"
+          echo
+          jq -r '.changes | group_by(.changeType)[] | "- **\(.[0].changeType)**: \(length)"' what-if.json
+          echo
+          echo '<details><summary>Zasoby</summary>'
+          echo
+          jq -r '.changes[] | "- `\(.changeType)` \(.resourceId)"' what-if.json
+          echo '</details>'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    # WHY: a plain incremental deployment. A resource removed from the template stays in Azure until someone deletes it
+    # deliberately. Deployment stacks (az stack sub create) would delete such resources automatically and can block changes
+    # made outside the template (deny settings); that is a later step, once the team trusts what-if.
+    - name: Deploy
+      id: deploy
+      shell: bash
+      env:
+        IMAGE_TAG: ${{ inputs.image-tag }}
+        APIM_PRIVATE_ONLY: ${{ inputs.apim-private-only }}
+      run: |
+        az deployment sub create \
+          --name "shopflow-${{ inputs.environment }}-${{ github.run_id }}" \
+          --location "${{ inputs.location }}" \
+          --template-file infra/main.bicep \
+          --parameters "infra/parameters/${{ inputs.environment }}.bicepparam" \
+          --query properties.outputs > outputs.json
+        echo "api-host-name=$(jq -r '.apiHostName.value' outputs.json)" >> "$GITHUB_OUTPUT"

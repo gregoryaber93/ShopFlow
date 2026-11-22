@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "reasonCode": {
+      "type": "string"
+    },
+    "reasonDescription": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "failedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "reasonCode",
+    "failedAt"
+  ]
+}

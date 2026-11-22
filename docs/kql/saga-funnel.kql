@@ -1,0 +1,55 @@
+// Order saga funnel: how many started, how many were confirmed, rejected, cancelled.
+// Source: the shopflow.messaging.published metric from orders-processors (the Orders outbox relay publishes the saga
+// outcome as OrderConfirmed / OrderRejected / OrderCancelled) and the orchestrator logs.
+// The state of a single saga: GET /api/sagas/{orderId} or Cosmos saga/saga-state (docs/architecture/saga.md).
+
+// --- 1. Funnel: submitted orders and saga outcomes per hour ----------------------------------------------------------
+AppMetrics
+| where TimeGenerated > ago(24h) and Name == "shopflow.messaging.published" and AppRoleName == "orders-processors"
+| extend MessageType = tostring(Properties["shopflow.message.type"])
+| where MessageType in ("OrderSubmitted", "OrderConfirmed", "OrderRejected", "OrderCancelled")
+| summarize Count = sum(Sum) by bin(TimeGenerated, 1h), MessageType
+| render columnchart
+
+// WHY: during the v1 sunset period Orders publishes OrderSubmitted in two versions, so OrderSubmitted counts
+// twice. For the confirmation rate use saga starts (query 2), not OrderSubmitted.
+
+// --- 2. Confirmation rate: saga starts versus outcomes ---------------------------------------------------------------
+let started =
+    AppMetrics
+    | where TimeGenerated > ago(24h) and Name == "shopflow.messaging.processed" and AppRoleName == "order-saga"
+    | where tostring(Properties["shopflow.message.type"]) == "OrderSubmitted" and tostring(Properties["shopflow.outcome"]) == "handled"
+    | summarize Started = sum(Sum);
+AppMetrics
+| where TimeGenerated > ago(24h) and Name == "shopflow.messaging.published" and AppRoleName == "orders-processors"
+| extend MessageType = tostring(Properties["shopflow.message.type"])
+| summarize Confirmed = sumif(Sum, MessageType == "OrderConfirmed"),
+            Rejected = sumif(Sum, MessageType == "OrderRejected"),
+            Cancelled = sumif(Sum, MessageType == "OrderCancelled")
+| extend Started = toscalar(started)
+| extend ConfirmedPct = round(100.0 * Confirmed / Started, 1), InFlight = Started - Confirmed - Rejected - Cancelled
+
+// --- 3. Sagas waiting for an operator (the saga-manual-intervention alert) -------------------------------------------
+AppTraces
+| where TimeGenerated > ago(7d) and AppRoleName == "order-saga" and Message has "requires manual intervention"
+| parse Message with "Order saga " InstanceId " for order " OrderId " requires manual intervention: " Reason
+| summarize FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated), Escalations = count() by InstanceId, OrderId, Reason
+| order by LastSeen desc
+
+// --- 4. Steps for which the saga got no reply or did not send the command --------------------------------------------
+AppTraces
+| where TimeGenerated > ago(24h) and AppRoleName == "order-saga" and SeverityLevel >= 3
+| where Message has "could not send" or Message has "failed after all retries"
+| project TimeGenerated, Message
+| order by TimeGenerated desc
+
+// --- 5. Time from submission to confirmation (p50, p95) --------------------------------------------------------------
+// Events with the same CorrelationId: the OrderSubmitted publication span and the OrderConfirmed publication span.
+AppDependencies
+| where TimeGenerated > ago(24h) and AppRoleName == "orders-processors" and Name startswith "create "
+| extend MessageType = tostring(Properties["shopflow.message.type"]), CorrelationId = tostring(Properties["shopflow.correlation.id"])
+| where MessageType in ("OrderSubmitted", "OrderConfirmed")
+| summarize Submitted = minif(TimeGenerated, MessageType == "OrderSubmitted"), Confirmed = minif(TimeGenerated, MessageType == "OrderConfirmed") by CorrelationId
+| where isnotnull(Submitted) and isnotnull(Confirmed)
+| extend Minutes = datetime_diff("second", Confirmed, Submitted) / 60.0
+| summarize P50 = percentile(Minutes, 50), P95 = percentile(Minutes, 95), Orders = count()

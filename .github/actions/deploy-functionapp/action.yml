@@ -1,0 +1,32 @@
+name: Deploy Function Apps
+description: Zip packages to the Functions apps (Flex Consumption), one at a time.
+
+inputs:
+  units:
+    description: Space-separated deployable units, e.g. "order-saga payments-processor".
+    required: true
+  environment:
+    required: true
+  packages-dir:
+    description: Directory with the <unit>.zip packages.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # AZURE: Flex Consumption accepts the package through the app's SCM endpoint and stores it in a blob container
+    # (functionAppConfig.deployment in function-app-flex.bicep), from which the instances fetch it with their identity.
+    # The apps have no public endpoint, so the step runs on a runner in the VNet ("sites" private endpoint).
+    # Flex has no slots: the new version replaces the old one, and instances finish in-flight invocations before restarting.
+    # Service Bus triggers have retries and a DLQ, so a brief processing pause does not lose messages.
+    - name: Deploy packages
+      shell: bash
+      run: |
+        for unit in ${{ inputs.units }}; do
+          app="func-shopflow-$unit-${{ inputs.environment }}-weu"
+          echo "::group::$app"
+          az functionapp deployment source config-zip \
+            --resource-group "rg-shopflow-${{ inputs.environment }}-weu-apps" --name "$app" \
+            --src "${{ inputs.packages-dir }}/$unit.zip" --output none
+          echo "::endgroup::"
+        done

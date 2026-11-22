@@ -1,0 +1,38 @@
+// Payments: provider (PSP) calls and webhooks. Runbook: docs/runbooks/payment-failure.md.
+// PSP host: config.partners.pspBaseUrl in infra/parameters/{env}.bicepparam (prod: api.psp.example).
+
+// --- 1. PSP calls: outcome per operation and response code (the payment-provider-errors alert) -----------------------
+let pspHost = "api.psp.example";
+AppDependencies
+| where TimeGenerated > ago(1h) and AppRoleName == "payments-processor" and Target has pspHost
+| summarize Calls = sum(ItemCount), Failed = sumif(ItemCount, Success == false), P95ms = percentile(DurationMs, 95)
+    by Name, ResultCode
+| order by Failed desc
+
+// --- 2. PSP error rate over time -------------------------------------------------------------------------------------
+let pspHost = "api.psp.example";
+AppDependencies
+| where TimeGenerated > ago(24h) and AppRoleName == "payments-processor" and Target has pspHost
+| summarize FailedPct = round(100.0 * sumif(ItemCount, Success == false) / sum(ItemCount), 1) by bin(TimeGenerated, 5m)
+| render timechart
+
+// --- 3. Open circuit (circuit breaker) and exhausted retries ---------------------------------------------------------
+AppExceptions
+| where TimeGenerated > ago(1h) and AppRoleName == "payments-processor"
+| where ExceptionType has_any ("BrokenCircuitException", "TimeoutRejectedException", "PaymentGatewayException", "HttpRequestException")
+| summarize Count = count(), Example = take_any(OuterMessage) by ExceptionType, bin(TimeGenerated, 5m)
+| order by TimeGenerated desc
+
+// --- 4. PSP webhooks: signature verification outcome -----------------------------------------------------------------
+// 401 = the signature matches neither secret (rotation: docs/runbooks/secret-rotation.md).
+AppRequests
+| where TimeGenerated > ago(24h) and AppRoleName == "payments-processor" and Name has "psp-webhook"
+| summarize Requests = sum(ItemCount) by ResultCode, bin(TimeGenerated, 1h)
+| render columnchart
+
+// --- 5. Payment commands: processing outcome per type ----------------------------------------------------------------
+AppMetrics
+| where TimeGenerated > ago(24h) and Name == "shopflow.messaging.processed" and AppRoleName == "payments-processor"
+| extend MessageType = tostring(Properties["shopflow.message.type"]), Outcome = tostring(Properties["shopflow.outcome"])
+| summarize Count = sum(Sum) by MessageType, Outcome
+| order by MessageType asc

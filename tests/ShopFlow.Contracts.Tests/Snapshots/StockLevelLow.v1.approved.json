@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "properties": {
+    "sku": {
+      "type": "string"
+    },
+    "warehouseCode": {
+      "type": "string"
+    },
+    "available": {
+      "type": [
+        "string",
+        "integer"
+      ],
+      "pattern": "^-?(?:0|[1-9]\\d*)$"
+    },
+    "reorderThreshold": {
+      "type": [
+        "string",
+        "integer"
+      ],
+      "pattern": "^-?(?:0|[1-9]\\d*)$"
+    },
+    "detectedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "sku",
+    "warehouseCode",
+    "available",
+    "reorderThreshold",
+    "detectedAt"
+  ]
+}

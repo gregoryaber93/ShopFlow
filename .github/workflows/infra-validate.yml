@@ -1,0 +1,116 @@
+# Pull request changing infrastructure: Bicep build and lint, then what-if against dev as a PR comment.
+name: infra-validate
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-validate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-validate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: bicep build and lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # linter results as code scanning alerts in the PR
+    env:
+      # prod.bicepparam requires IMAGE_TAG (no default value, so that "latest" is never deployed to production).
+      IMAGE_TAG: validate
+    steps:
+      - uses: actions/checkout@v5
+
+      # WHY: build every entry file and every parameter file. A type error in a .bicepparam (a typo in an environmentConfig
+      # field) surfaces here, not a dozen minutes into a deployment.
+      # Linter warnings are treated as errors (bicepconfig.json): we count the results in SARIF.
+      - name: Build and lint
+        run: |
+          az bicep install
+          mkdir -p sarif
+          status=0
+          for file in infra/main.bicep infra/bootstrap/shared.bicep infra/bootstrap/environment.bicep; do
+            az bicep build --file "$file" --stdout > /dev/null || status=1
+            name=$(echo "$file" | tr '/.' '--')
+            az bicep lint --file "$file" --diagnostics-format sarif > "sarif/$name.sarif" || status=1
+            count=$(jq '[.runs[].results[]] | length' "sarif/$name.sarif")
+            echo "$file: $count linter findings"
+            [ "$count" -eq 0 ] || status=1
+          done
+          for params in infra/parameters/*.bicepparam infra/bootstrap/*.bicepparam; do
+            az bicep build-params --file "$params" --stdout > /dev/null || status=1
+          done
+          exit $status
+
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: sarif
+          category: bicep-lint
+
+  what-if:
+    name: what-if (dev)
+    needs: lint
+    # GitHub issues no OIDC tokens for pull requests from forks; for them the sign-in step would fail anyway.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+
+      # AZURE: a separate read-only identity (id-shopflow-github-plan-dev, subject repo:<repo>:pull_request).
+      # Code from an unmerged branch has no access to the deployment identity, because that one trusts only the "dev" environment.
+      - uses: ./.github/actions/azure-login
+        with:
+          client-id: ${{ vars.AZURE_PLAN_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: What-if
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          APIM_PRIVATE_ONLY: ${{ vars.DEV_APIM_PRIVATE_ONLY || 'false' }}
+        run: |
+          export IMAGE_TAGS=$(bash .github/scripts/current-image-tags.sh rg-shopflow-dev-weu-apps)
+          az deployment sub what-if \
+            --location westeurope \
+            --template-file infra/main.bicep \
+            --parameters infra/parameters/dev.bicepparam \
+            --exclude-change-types NoChange Ignore > what-if.txt
+          {
+            echo "<!-- infra-what-if -->"
+            echo "### What-if: dev"
+            echo
+            echo "Commit ${{ github.event.pull_request.head.sha }}"
+            echo
+            echo '```text'
+            # ANSI colour codes in the az CLI output and the comment length limit (65,536 characters).
+            sed 's/\x1b\[[0-9;]*m//g' what-if.txt | head -c 60000
+            echo '```'
+          } > comment.md
+          cat comment.md >> "$GITHUB_STEP_SUMMARY"
+
+      # WHY: one comment updated on every push (a marker in the body) instead of a new comment each time.
+      - name: Comment on pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = require('fs').readFileSync('comment.md', 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find(c => c.body.includes('<!-- infra-what-if -->'));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

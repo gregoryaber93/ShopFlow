@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.CustomerReadModels.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.CustomerReadModels.Application\ShopFlow.CustomerReadModels.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Azure\ShopFlow.Azure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Observability\ShopFlow.Observability.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Persistence.Cosmos\ShopFlow.Persistence.Cosmos.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShopFlow.CustomerReadModels.UnitTests" />
+  </ItemGroup>
+
+</Project>

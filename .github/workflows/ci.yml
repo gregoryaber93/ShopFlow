@@ -1,0 +1,172 @@
+# CI: build, tests, contracts. Runs for pull requests, in the merge queue and as the first stage of release.yml
+# (workflow_call), so main gets exactly the same checks as a pull request.
+name: ci
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  merge_group:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# WHY: a new commit in the same pull request cancels the previous run. On main (release) nothing is cancelled.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CONFIGURATION: Release
+  # WHY: PactNet sends anonymous usage statistics; in CI we want no traffic to external services.
+  PACT_DO_NOT_TRACK: 'true'
+  RESULTS: ${{ github.workspace }}/artifacts/test-results
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      integration: ${{ steps.matrix.outputs.integration }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Detect changed services
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: .github/filters.yml
+
+      # WHY: in a pull request integration tests run only for the changed services (the SQL Server and Cosmos DB emulator
+      # containers take minutes to start). In the merge queue and on main they always all run.
+      - name: Integration test matrix
+        id: matrix
+        env:
+          CHANGES: ${{ steps.filter.outputs.changes || '["orders","inventory"]' }}
+        run: |
+          echo "integration=$(jq -c '[.[] | select(. == "orders" or . == "inventory")]' <<< "$CHANGES")" >> "$GITHUB_OUTPUT"
+
+  build-test:
+    name: build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-dotnet
+
+      - name: Restore
+        run: dotnet restore ShopFlow.slnx
+
+      - name: Check formatting
+        run: dotnet format whitespace ShopFlow.slnx --verify-no-changes --verbosity minimal
+
+      # Version number from the run number; the commit SHA goes into InformationalVersion (1.0.412+3f2a9c1…).
+      # Analyzers and TreatWarningsAsErrors behave as locally (Directory.Build.props).
+      - name: Build
+        run: >
+          dotnet build ShopFlow.slnx --no-restore --configuration "$CONFIGURATION"
+          -p:Version=1.0.${{ github.run_number }} -p:SourceRevisionId=${{ github.sha }}
+
+      # Unit, API (WebApplicationFactory), architecture, contract and tool tests. Integration tests skip themselves without
+      # SHOPFLOW_RUN_INTEGRATION_TESTS=1; Pact has a separate step with a fixed order.
+      # Exit code 8 (Microsoft.Testing.Platform: zero tests run) is returned by the Pact project, which is filtered out entirely.
+      - name: Test
+        run: >
+          dotnet test --solution ShopFlow.slnx --no-build --configuration "$CONFIGURATION"
+          --filter-not-namespace "ShopFlow.Pact.Tests*" --ignore-exit-code 8
+          --results-directory "$RESULTS" --report-xunit-trx --report-xunit-markdown
+
+      # WHY: consumer tests regenerate the pact files, provider tests replay them. Order matters:
+      # the provider must verify the pact as of this commit.
+      - name: Pact consumers
+        run: >
+          dotnet test --project tests/ShopFlow.Pact.Tests --no-build --configuration "$CONFIGURATION"
+          --filter-namespace "ShopFlow.Pact.Tests.Consumers"
+          --results-directory "$RESULTS/pact-consumers" --report-xunit-trx --report-xunit-markdown
+
+      # WHY: a consumer code change that changes a pact must come in the same pull request as the new pact file.
+      # The reviewer then sees the contract change in the diff, and CODEOWNERS requires the provider owner's approval.
+      - name: Pact files committed
+        run: |
+          if [ -n "$(git status --porcelain -- tests/ShopFlow.Pact.Tests/pacts)" ]; then
+            git --no-pager diff -- tests/ShopFlow.Pact.Tests/pacts
+            echo "::error title=Pact::Consumer tests changed the pact files. Run them locally and commit the files."
+            exit 1
+          fi
+
+      - name: Pact providers
+        run: >
+          dotnet test --project tests/ShopFlow.Pact.Tests --no-build --configuration "$CONFIGURATION"
+          --filter-namespace "ShopFlow.Pact.Tests.Providers"
+          --results-directory "$RESULTS/pact-providers" --report-xunit-trx --report-xunit-markdown
+
+      # AZURE/WHY: an EF Core model change without a migration would pass the build and the in-memory tests, and surface only
+      # after deployment (application and Azure SQL schema out of sync). This command compares the model with the last
+      # migration without connecting to a database.
+      - name: EF Core model matches migrations
+        run: >
+          dotnet ef migrations has-pending-model-changes --no-build --configuration "$CONFIGURATION"
+          --project src/Services/Inventory/ShopFlow.Inventory.Infrastructure
+
+      - name: Test summary
+        if: always()
+        run: find "$RESULTS" -name '*.md' -exec cat {} + >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: artifacts/test-results
+          retention-days: 14
+
+  integration-tests:
+    name: integration (${{ matrix.service }})
+    needs: changes
+    if: needs.changes.outputs.integration != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.integration) }}
+    env:
+      # Testcontainers: SQL Server (Inventory) and the Cosmos DB emulator (Orders) on the runner's Docker.
+      SHOPFLOW_RUN_INTEGRATION_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-dotnet
+
+      - name: Integration tests
+        run: |
+          case "${{ matrix.service }}" in
+            orders)    project=src/Services/Orders/tests/ShopFlow.Orders.IntegrationTests ;;
+            inventory) project=src/Services/Inventory/tests/ShopFlow.Inventory.IntegrationTests ;;
+          esac
+          dotnet test --project "$project" --configuration "$CONFIGURATION" \
+            --results-directory "$RESULTS" --report-xunit-trx --report-xunit-markdown
+
+      - name: Test summary
+        if: always()
+        run: find "$RESULTS" -name '*.md' -exec cat {} + >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+  # WHY: a branch protection rule needs one status that always exists. A job skipped by a condition (e.g. integration tests
+  # with no service changes) reports no status, so requiring it would block the merge.
+  ci-result:
+    name: ci-result
+    needs: [build-test, integration-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          echo "build-test: ${{ needs.build-test.result }}, integration-tests: ${{ needs.integration-tests.result }}"
+          [ "${{ needs.build-test.result }}" = "success" ] || exit 1
+          case "${{ needs.integration-tests.result }}" in success|skipped) ;; *) exit 1 ;; esac

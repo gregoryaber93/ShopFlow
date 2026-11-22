@@ -1,0 +1,34 @@
+<!--
+  API Management global policy (all APIs).
+  AZURE: APIM accepts traffic only from Front Door (Private Link). The X-Azure-FDID header carries the identifier of
+  our Front Door profile; we check it as defence in depth, in case someone configures another Front Door profile
+  with an origin pointing at our gateway.
+-->
+<policies>
+  <inbound>
+    <check-header name="X-Azure-FDID" failed-check-httpcode="403" failed-check-error-message="Forbidden" ignore-case="true">
+      <value>{{frontdoor-id}}</value>
+    </check-header>
+    <!-- Correlation identifier: we pass the client's on or assign a new one (CorrelationMiddleware in the services accepts it). -->
+    <set-header name="X-Correlation-ID" exists-action="skip">
+      <value>@(context.RequestId.ToString())</value>
+    </set-header>
+    <!--
+      Limit per client address. AZURE: behind Front Door the TCP address is the Front Door address; the real client address
+      is in the X-Azure-ClientIP header. A limit on context.Request.IpAddress would throttle all traffic at once.
+    -->
+    <rate-limit-by-key calls="600" renewal-period="60" counter-key="@(context.Request.Headers.GetValueOrDefault("X-Azure-ClientIP", context.Request.IpAddress))" />
+  </inbound>
+  <backend>
+    <forward-request timeout="30" />
+  </backend>
+  <outbound>
+    <set-header name="X-Powered-By" exists-action="delete" />
+    <set-header name="X-AspNet-Version" exists-action="delete" />
+  </outbound>
+  <on-error>
+    <set-header name="X-Correlation-ID" exists-action="skip">
+      <value>@(context.RequestId.ToString())</value>
+    </set-header>
+  </on-error>
+</policies>

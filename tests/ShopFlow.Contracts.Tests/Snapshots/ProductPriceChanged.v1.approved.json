@@ -1,0 +1,56 @@
+{
+  "type": "object",
+  "properties": {
+    "sku": {
+      "type": "string"
+    },
+    "oldPrice": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$"
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ]
+    },
+    "newPrice": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$"
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ]
+    },
+    "effectiveFrom": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "sku",
+    "oldPrice",
+    "newPrice",
+    "effectiveFrom"
+  ]
+}

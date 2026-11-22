@@ -1,0 +1,32 @@
+name: Setup .NET
+description: SDK from global.json, NuGet package cache, tools from dotnet-tools.json, no telemetry.
+
+runs:
+  using: composite
+  steps:
+    # WHY: CLI telemetry is turned off before the first dotnet call. $GITHUB_ENV applies to the following steps of the job.
+    - name: Disable telemetry
+      shell: bash
+      run: |
+        {
+          echo "DOTNET_CLI_TELEMETRY_OPTOUT=1"
+          echo "DOTNET_NOLOGO=1"
+          echo "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1"
+          echo "NUGET_PACKAGES=${{ runner.temp }}/nuget-packages"
+        } >> "$GITHUB_ENV"
+
+    - uses: actions/setup-dotnet@v5
+      with:
+        global-json-file: global.json
+
+    # WHY: the built-in cache in setup-dotnet requires packages.lock.json files. With Central Package Management the versions
+    # live in one file, so a key from Directory.Packages.props and the project files is enough.
+    - uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/nuget-packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'nuget.config', '**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Restore local tools
+      shell: bash
+      run: dotnet tool restore

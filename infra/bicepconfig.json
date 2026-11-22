@@ -1,0 +1,30 @@
+{
+  "$comment": "Bicep linter rules. Warnings are treated as errors in CI (az bicep lint with SARIF output and a threshold). Exclusions are explicit and justified.",
+  "analyzers": {
+    "core": {
+      "enabled": true,
+      "rules": {
+        "no-hardcoded-env-urls": { "level": "error" },
+        "no-unused-params": { "level": "error" },
+        "no-unused-vars": { "level": "error" },
+        "no-unused-existing-resources": { "level": "error" },
+        "prefer-interpolation": { "level": "error" },
+        "secure-parameter-default": { "level": "error" },
+        "secure-secrets-in-params": { "level": "error" },
+        "outputs-should-not-contain-secrets": { "level": "error" },
+        "protect-commandtoexecute-secrets": { "level": "error" },
+        "use-secure-value-for-secure-inputs": { "level": "error" },
+        "use-resource-id-functions": { "level": "warning" },
+        "use-stable-resource-identifiers": { "level": "error" },
+        "use-recent-api-versions": { "level": "warning", "maxAllowedAgeInDays": 730 },
+        "explicit-values-for-loc-params": { "level": "warning" },
+        "use-parent-property": { "level": "warning" },
+        "max-outputs": { "level": "error" },
+        "max-params": { "level": "error" },
+        "max-resources": { "level": "error" },
+        "max-variables": { "level": "error" }
+      }
+    }
+  },
+  "experimentalFeaturesEnabled": {}
+}

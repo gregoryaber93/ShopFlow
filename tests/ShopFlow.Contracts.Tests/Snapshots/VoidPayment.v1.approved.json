@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "paymentId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "paymentId",
+    "reason"
+  ]
+}

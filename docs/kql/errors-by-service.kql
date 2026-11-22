@@ -1,0 +1,42 @@
+// Errors per service. The basis of the failed-requests alert (infra/modules/operations/alerts.bicep).
+// ItemCount instead of count(): in prod traces are sampled (25%), and ItemCount carries the sample weight.
+
+// --- 1. Error rate per service and operation, last hour --------------------------------------------------------------
+AppRequests
+| where TimeGenerated > ago(1h)
+| summarize Total = sum(ItemCount), Failed = sumif(ItemCount, Success == false),
+            P95ms = percentile(DurationMs, 95) by AppRoleName, Name
+| extend FailedPct = round(100.0 * Failed / Total, 2)
+| where Failed > 0
+| order by FailedPct desc
+
+// --- 2. Before and after a deployment: errors per version (AppVersion = 1.0.{run_number}) ----------------------------
+let role = "orders-api";
+AppRequests
+| where TimeGenerated > ago(6h) and AppRoleName == role
+| summarize Total = sum(ItemCount), Failed = sumif(ItemCount, Success == false) by AppVersion, bin(TimeGenerated, 10m)
+| extend FailedPct = round(100.0 * Failed / Total, 2)
+| project TimeGenerated, AppVersion, FailedPct
+| render timechart
+
+// --- 3. The most frequent exceptions per service ---------------------------------------------------------------------
+AppExceptions
+| where TimeGenerated > ago(1h)
+| summarize Count = sum(ItemCount), Example = take_any(OuterMessage), LastSeen = max(TimeGenerated)
+    by AppRoleName, ExceptionType, ProblemId
+| order by Count desc
+| take 30
+
+// --- 4. Failing dependencies (who does not answer whom) --------------------------------------------------------------
+AppDependencies
+| where TimeGenerated > ago(1h)
+| summarize Total = sum(ItemCount), Failed = sumif(ItemCount, Success == false), P95ms = percentile(DurationMs, 95)
+    by AppRoleName, DependencyType, Target, ResultCode
+| where Failed > 0
+| order by Failed desc
+
+// --- 5. Warnings and errors from logs per service (SeverityLevel: 2 Warning, 3 Error, 4 Critical) --------------------
+AppTraces
+| where TimeGenerated > ago(1h) and SeverityLevel >= 3
+| summarize Count = count(), Example = take_any(Message) by AppRoleName, SeverityLevel
+| order by SeverityLevel desc, Count desc

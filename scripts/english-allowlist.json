@@ -1,0 +1,30 @@
+{
+  "$comment": "Files allowed to contain Polish text. mode 'comments-only': string literals may be Polish, comments must be English. mode 'skip': the file is not checked. Keep every entry justified; see docs/adr/README.md and CLAUDE.md (Language).",
+  "files": [
+    {
+      "path": "src/Services/Notifications/ShopFlow.Notifications.Application/Templates/NotificationTemplates.cs",
+      "mode": "comments-only",
+      "reason": "Customer-facing e-mail and SMS texts are localized (pl/en); Polish customers get Polish messages."
+    },
+    {
+      "path": "src/Services/Notifications/ShopFlow.Notifications.Application/Templates/EmailComposer.cs",
+      "mode": "comments-only",
+      "reason": "Localized fragments of customer e-mails (greeting, footer)."
+    },
+    {
+      "path": "src/Services/Notifications/tests/ShopFlow.Notifications.UnitTests/NotificationHandlerTests.cs",
+      "mode": "comments-only",
+      "reason": "Tests assert the Polish customer-facing output."
+    },
+    {
+      "path": "src/Services/Payments/ShopFlow.Payments.Infrastructure/Invoicing/InvoiceInfrastructure.cs",
+      "mode": "comments-only",
+      "reason": "The Polish VAT invoice text (a customer-facing legal document) and the transliteration map of Polish letters for the PDF font."
+    },
+    {
+      "path": "scripts/lib/language-check.mjs",
+      "mode": "skip",
+      "reason": "Contains the Polish word list used for detection."
+    }
+  ]
+}

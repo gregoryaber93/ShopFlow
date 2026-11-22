@@ -1,0 +1,56 @@
+// The history of one order across all services.
+//
+// WHY: a trace (OperationId / traceparent) ends when the saga waits for a webhook or when the relay publishes an event
+// in another process. The CorrelationId is constant for the whole order (from POST /orders to delivery), so first we
+// collect all traces with this CorrelationId, then all the telemetry of those traces.
+// The CorrelationId is in the X-Correlation-Id header of the API response; alternatively the orderId is enough.
+
+// --- 1. The order timeline -------------------------------------------------------------------------------------------
+let correlationId = "<X-Correlation-Id>";
+let orderId = "<orderId>";
+let lookback = 14d;
+let traces =
+    union AppRequests, AppDependencies
+    | where TimeGenerated > ago(lookback)
+    | where tostring(Properties["shopflow.correlation.id"]) == correlationId
+        or tostring(Properties["shopflow.order.id"]) == orderId
+    | distinct OperationId;
+union
+    (AppRequests | extend Kind = "request", Detail = strcat(ResultCode, " ", Url)),
+    (AppDependencies | extend Kind = strcat("dependency:", DependencyType), Detail = strcat(ResultCode, " ", Target)),
+    (AppTraces | extend Kind = "log", Name = Message, Detail = tostring(SeverityLevel)),
+    (AppExceptions | extend Kind = "exception", Name = ExceptionType, Detail = OuterMessage)
+| where TimeGenerated > ago(lookback)
+| where OperationId in (traces) or tostring(Properties["CorrelationId"]) == correlationId
+| project TimeGenerated, AppRoleName, Kind, Name, Success, DurationMs, Detail,
+          MessageType = tostring(Properties["shopflow.message.type"]),
+          DeliveryCount = tostring(Properties["messaging.servicebus.message.delivery_count"]),
+          OperationId
+| order by TimeGenerated asc
+
+// --- 2. Message hops: who sent, who processed, how many attempts -----------------------------------------------------
+let correlationId = "<X-Correlation-Id>";
+union AppRequests, AppDependencies
+| where TimeGenerated > ago(14d)
+| where tostring(Properties["shopflow.correlation.id"]) == correlationId
+| where isnotempty(Properties["shopflow.message.type"])
+| extend MessageType = tostring(Properties["shopflow.message.type"]),
+         MessageId = tostring(Properties["messaging.message.id"]),
+         Step = iff(Name startswith "create", "publish", "process")
+| summarize First = min(TimeGenerated), Attempts = countif(Step == "process"), Failed = countif(Success == false),
+            Roles = make_set(AppRoleName) by MessageType, MessageId, Step
+| order by First asc
+
+// --- 3. Orders from the last day for which the saga started but Orders did not publish an outcome --------------------
+// Orders "in limbo": the saga is running (e.g. 3-D Secure), waits for an operator, or something got stuck.
+AppRequests
+| where TimeGenerated > ago(1d) and AppRoleName == "order-saga" and Name has "saga-start"
+| extend OrderId = tostring(Properties["shopflow.order.id"]), CorrelationId = tostring(Properties["shopflow.correlation.id"])
+| join kind=leftanti (
+    AppDependencies
+    | where TimeGenerated > ago(1d) and AppRoleName == "orders-processors"
+    | where tostring(Properties["shopflow.message.type"]) in ("OrderConfirmed", "OrderRejected", "OrderCancelled")
+    | extend OrderId = tostring(Properties["shopflow.order.id"])
+  ) on OrderId
+| project TimeGenerated, OrderId, CorrelationId
+| order by TimeGenerated asc

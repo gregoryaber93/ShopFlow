@@ -1,0 +1,21 @@
+* text=auto eol=lf
+
+*.cs      text diff=csharp
+*.csproj  text
+*.slnx    text
+*.bicep   text
+*.md      text diff=markdown
+*.sh      text eol=lf
+*.ps1     text eol=crlf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+
+# Snapshots and pacts must have stable line endings; otherwise a byte comparison passes on Linux and fails on Windows.
+*.approved.json text eol=lf
+tests/ShopFlow.Pact.Tests/pacts/*.json text eol=lf
+
+# Generated EF Core files: collapsed in pull request diffs.
+**/Migrations/*.Designer.cs linguist-generated=true
+**/Migrations/*ModelSnapshot.cs linguist-generated=true

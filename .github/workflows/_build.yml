@@ -1,0 +1,127 @@
+# Reusable: builds all release artifacts from one commit (build once, deploy many).
+#   - App Service and Functions zip packages → the "packages" artifact of this run,
+#   - container images → Trivy scan → shared registry with tag = commit SHA + provenance attestation.
+# Called only from release.yml on main: the build identity trusts the ref:refs/heads/main subject.
+name: _build
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  CONFIGURATION: Release
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.images.outputs.images }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github
+      - id: images
+        run: echo "images=$(jq -c '[.containerApps[], .containerJobs[]]' .github/deployables.json)" >> "$GITHUB_OUTPUT"
+
+  packages:
+    name: packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-dotnet
+
+      # WHY: every release builds all units, and each environment deploys only those that changed since its last deployment
+      # (_deploy.yml). Test and prod, which may be several releases behind dev, therefore always get packages from the same
+      # commit as dev.
+      - name: Publish
+        run: |
+          mkdir -p packages
+          jq -r '(.appService + .functions)[] | "\(.unit) \(.project)"' .github/deployables.json |
+          while read -r unit project; do
+            echo "::group::$unit"
+            dotnet publish "$project" --configuration "$CONFIGURATION" --output "out/$unit" \
+              -p:Version=1.0.${{ github.run_number }} -p:SourceRevisionId=${{ github.sha }}
+            (cd "out/$unit" && zip -q -r "$GITHUB_WORKSPACE/packages/$unit.zip" .)
+            echo "::endgroup::"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: packages
+          retention-days: 30
+
+  images:
+    name: image (${{ matrix.image.unit }})
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write       # OIDC: Azure sign-in and the attestation signature
+      attestations: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.images) }}
+    env:
+      LOCAL_IMAGE: local/${{ matrix.image.unit }}:${{ github.sha }}
+      REMOTE_IMAGE: ${{ vars.ACR_NAME }}.azurecr.io/${{ matrix.image.unit }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Layers (NuGet restore, SDK image) from the GitHub Actions cache: later releases rebuild only the changed code.
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          tags: ${{ env.LOCAL_IMAGE }}
+          load: true
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image.unit }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.unit }}
+
+      # WHY: scan before pushing. An image with a critical vulnerability that has a fix never reaches the registry, so it cannot
+      # be deployed even manually. Vulnerabilities without a fix (ignore-unfixed) do not block a release: nothing can be done
+      # about them, and the weekly scan in security.yml reports them anyway.
+      - name: Scan (Trivy)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ env.LOCAL_IMAGE }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      - uses: ./.github/actions/azure-login
+        with:
+          client-id: ${{ vars.AZURE_BUILD_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # AZURE: az acr login exchanges the build identity's Entra ID token (AcrPush role) for a registry token for Docker.
+      # The registry has no admin account, so there is no password that could leak.
+      - name: Push
+        id: push
+        run: |
+          az acr login --name "${{ vars.ACR_NAME }}"
+          docker tag "$LOCAL_IMAGE" "$REMOTE_IMAGE:${{ github.sha }}"
+          docker push "$REMOTE_IMAGE:${{ github.sha }}"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$REMOTE_IMAGE:${{ github.sha }}" | cut -d@ -f2)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      # WHY: the attestation (SLSA provenance), signed with the workflow identity, binds the image digest to the repository, the
+      # commit and the run that built it. It is stored in the registry next to the image (an OCI artifact), so you can verify
+      # that an image in production came from this pipeline: gh attestation verify oci://<image> --owner shopflow-org.
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REMOTE_IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

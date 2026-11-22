@@ -1,0 +1,42 @@
+// Queue backlogs and consumer throughput.
+//
+// AZURE: platform metrics sent by diagnostic settings to the AzureMetrics table have no dimensions, so
+// ActiveMessages in AzureMetrics is the total for the whole namespace. The backlog per queue (the EntityName dimension)
+// is in Metrics Explorer, in the metric alerts (sb-backlog) and in `az servicebus queue list`. Here we compute what
+// the application sees: processing throughput per consumer and message waiting time.
+
+// --- 1. Backlog trend across the namespace ---------------------------------------------------------------------------
+AzureMetrics
+| where TimeGenerated > ago(24h)
+| where ResourceProvider == "MICROSOFT.SERVICEBUS"
+| where MetricName in ("ActiveMessages", "DeadletteredMessages", "IncomingMessages", "OutgoingMessages")
+| summarize Value = max(Maximum) by bin(TimeGenerated, 5m), MetricName
+| render timechart
+
+// --- 2. Consumer throughput: processed messages per minute -----------------------------------------------------------
+// A drop to zero while ActiveMessages grows = the consumer is stuck (host start, permissions, scaling).
+AppMetrics
+| where TimeGenerated > ago(3h) and Name == "shopflow.messaging.processed"
+| extend Consumer = tostring(Properties["shopflow.consumer"])
+| summarize PerMinute = sum(Sum) / 5.0 by bin(TimeGenerated, 5m), Consumer
+| render timechart
+
+// --- 3. How long a message waited in the queue before processing -----------------------------------------------------
+// The time between the publication span (create) and the processing span (process) of the same message.
+let published =
+    AppDependencies
+    | where TimeGenerated > ago(1h) and Name startswith "create "
+    | project PublishedAt = TimeGenerated, MessageId = tostring(Properties["messaging.message.id"]);
+AppRequests
+| where TimeGenerated > ago(1h) and Name startswith "process "
+| extend MessageId = tostring(Properties["messaging.message.id"]), Consumer = tostring(Properties["shopflow.consumer"])
+| join kind=inner published on MessageId
+| extend WaitSeconds = datetime_diff("millisecond", TimeGenerated, PublishedAt) / 1000.0
+| summarize P50 = percentile(WaitSeconds, 50), P95 = percentile(WaitSeconds, 95), Max = max(WaitSeconds) by Consumer
+| order by P95 desc
+
+// --- 4. Read model projection delay (the projection-lag alert) -------------------------------------------------------
+AppMetrics
+| where TimeGenerated > ago(6h) and Name == "shopflow.readmodels.projection_lag"
+| summarize P50 = percentile(Max, 50), P95 = percentile(Max, 95) by bin(TimeGenerated, 5m)
+| render timechart

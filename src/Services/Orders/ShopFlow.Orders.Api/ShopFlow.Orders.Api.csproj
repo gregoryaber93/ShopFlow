@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Orders.Api</RootNamespace>
+    <!-- AZURE: App Service for Linux runs a .NET application from a zip package (Run From Package).
+         Self-contained and ReadyToRun are not needed: the platform image has the .NET 10 runtime. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Orders.Infrastructure\ShopFlow.Orders.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Web\ShopFlow.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShopFlow.Orders.Api.Tests" />
+  </ItemGroup>
+
+</Project>

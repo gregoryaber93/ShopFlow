@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "Azure__UseDeveloperCredentials": "true",
+    "Cosmos__accountEndpoint": "https://cosmos-shopflow-dev-weu.documents.azure.com:443/",
+    "Cosmos__DatabaseName": "analytics",
+    "ServiceBus__fullyQualifiedNamespace": "sbns-shopflow-dev-weu.servicebus.windows.net",
+    "EventHubs__fullyQualifiedNamespace": "evhns-shopflow-dev-weu.servicebus.windows.net",
+    "AppConfiguration__Endpoint": "https://appcs-shopflow-dev-weu.azconfig.io",
+    "AppConfiguration__KeyPrefix": "Analytics:"
+  }
+}

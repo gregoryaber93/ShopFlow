@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\MessagingTopologyFile.cs" Link="Shared\MessagingTopologyFile.cs" />
+    <None Include="..\..\infra\modules\messaging\messaging-topology.json" Link="messaging-topology.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WHY: the only project in the repo published as a NuGet package. Services in the monorepo use
+       ProjectReference, but contracts are also the interface for teams outside the repo (data
+       warehouse, partner applications), so they have their own SemVer independent of service versions.
+       Zero package dependencies: consumers do not inherit our Azure SDK versions. -->
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Contracts</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>ShopFlow.Contracts</PackageId>
+    <Description>Versioned message contracts (commands and integration events) of the ShopFlow platform.</Description>
+    <!-- MAJOR goes up only when a contract version is removed after its sunset period.
+         MINOR when a new contract or an optional field is added. See docs/adr/0012. -->
+    <!-- 1.2.0: CreateShipment v2; optional AuthorizePayment.PaymentId and CreateShipment(v1).ShipmentId. -->
+    <VersionPrefix>1.2.0</VersionPrefix>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ShopFlow.Orders.Api\ShopFlow.Orders.Api.csproj" />
+    <ProjectReference Include="..\ShopFlow.Orders.Testing\ShopFlow.Orders.Testing.csproj" />
+    <ProjectReference Include="..\..\..\..\..\tests\ShopFlow.Testing\ShopFlow.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+</Project>

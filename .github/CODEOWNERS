@@ -1,0 +1,29 @@
+# Code owners: review required by the main branch protection rule ("Require review from Code Owners").
+# The last match wins, so general entries are at the top.
+
+*                                          @shopflow-org/platform-team
+
+# Bounded contexts: one pattern covers code, tests and Dockerfiles (tests live next to the service).
+/src/Services/Orders/                      @shopflow-org/team-checkout
+/src/Services/OrderSaga/                   @shopflow-org/team-checkout
+/src/Services/Payments/                    @shopflow-org/team-checkout
+/src/Services/Inventory/                   @shopflow-org/team-fulfilment
+/src/Services/Shipping/                    @shopflow-org/team-fulfilment
+/src/Services/Notifications/               @shopflow-org/team-customer
+/src/Services/CustomerReadModels/          @shopflow-org/team-customer
+/src/Services/Analytics/                   @shopflow-org/team-data
+
+# Contracts and pacts: a contract change requires architecture approval, a pact change also the owners of both sides.
+/src/BuildingBlocks/ShopFlow.Contracts/    @shopflow-org/architecture
+/tests/ShopFlow.Contracts.Tests/           @shopflow-org/architecture
+/tests/ShopFlow.Pact.Tests/pacts/          @shopflow-org/team-checkout @shopflow-org/team-fulfilment
+
+# Database schema migrations: additionally the data administrator (expand/contract compatibility, table locks).
+/src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Persistence/Migrations/  @shopflow-org/team-fulfilment @shopflow-org/dba
+
+# Infrastructure, messaging topology and pipelines: platform; permissions and bootstrap also security.
+/infra/                                    @shopflow-org/platform-team
+/infra/modules/messaging/messaging-topology.json  @shopflow-org/platform-team @shopflow-org/architecture
+/infra/bootstrap/                          @shopflow-org/platform-team @shopflow-org/security
+/infra/sql/                                @shopflow-org/platform-team @shopflow-org/dba
+/.github/                                  @shopflow-org/platform-team @shopflow-org/security

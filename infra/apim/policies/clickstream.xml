@@ -1,0 +1,41 @@
+<!--
+  Clickstream ingestion from the browser to the clickstream-ingest function.
+  WHY: a public endpoint (anonymous visitors click too), so the gateway does three things the function cannot do
+  itself: removes the client-supplied identifier header (anti-spoofing), writes it from a valid token, and
+  authenticates to the function with its own identity (Easy Auth lets only APIM through).
+-->
+<policies>
+  <inbound>
+    <base />
+    <set-header name="X-ShopFlow-Customer-Id" exists-action="delete" />
+    <choose>
+      <when condition="@(context.Request.Headers.ContainsKey("Authorization"))">
+        <validate-jwt header-name="Authorization" failed-validation-httpcode="401" require-scheme="Bearer" output-token-variable-name="customerToken">
+          <openid-config url="{{customers-authority}}/.well-known/openid-configuration" />
+          <audiences>
+            <audience>{{orders-audience}}</audience>
+          </audiences>
+        </validate-jwt>
+        <set-header name="X-ShopFlow-Customer-Id" exists-action="override">
+          <value>@(((Jwt)context.Variables["customerToken"]).Claims.GetValueOrDefault("oid", ""))</value>
+        </set-header>
+      </when>
+    </choose>
+    <!-- Body up to 256 KB (the function would reject a larger one anyway, but here it does not occupy an instance). -->
+    <validate-content unspecified-content-type-action="prevent" max-size="262144" size-exceeded-action="prevent">
+      <content type="application/json" validate-as="json" action="prevent" />
+    </validate-content>
+    <rate-limit-by-key calls="120" renewal-period="60" counter-key="@(context.Request.Headers.GetValueOrDefault("X-Azure-ClientIP", context.Request.IpAddress))" />
+    <set-header name="Authorization" exists-action="delete" />
+    <authentication-managed-identity resource="api://{{analytics-function-client-id}}" client-id="{{apim-identity-client-id}}" />
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

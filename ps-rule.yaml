@@ -1,0 +1,31 @@
+# PSRule for Azure (.github/workflows/security.yml): Azure Well-Architected Framework rules for the infrastructure.
+# https://azure.github.io/PSRule.Rules.Azure/
+
+requires:
+  PSRule.Rules.Azure: '>=1.40.0'
+
+include:
+  module:
+    - PSRule.Rules.Azure
+
+configuration:
+  # Expanding .bicepparam files: the rules evaluate the dev, test and prod resources with their parameters.
+  AZURE_BICEP_PARAMS_FILE_EXPANSION: true
+  AZURE_BICEP_FILE_EXPANSION_TIMEOUT: 30
+  AZURE_BICEP_CHECK_TOOL: true
+
+input:
+  # Only the entry points with parameters; modules are evaluated as part of the expanded deployments.
+  pathIgnore:
+    - '**'
+    - '!infra/parameters/*.bicepparam'
+    - '!infra/bootstrap/*.bicepparam'
+
+output:
+  culture:
+    - en-US
+
+# WHY: rule exceptions are added here (rule.exclude or a suppression) with a justification in a comment, e.g. the
+# public endpoint of the image registry (infra/bootstrap/modules/registry.bicep). No exception = the rule applies.
+rule:
+  exclude: []

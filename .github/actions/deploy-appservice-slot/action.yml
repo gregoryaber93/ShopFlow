@@ -1,0 +1,43 @@
+name: Deploy App Service (slot swap)
+description: Package to the staging slot, smoke test, swap to production, smoke test after the swap.
+
+inputs:
+  app-name:
+    required: true
+  resource-group:
+    required: true
+  package:
+    description: Path to the zip package (dotnet publish).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # AZURE: the deployment goes through the SCM endpoint of the staging slot (OneDeploy). The app has publicNetworkAccess: Disabled,
+    # so SCM answers only through the "sites-staging" private endpoint: the step must run on a runner in the VNet.
+    # WEBSITE_RUN_FROM_PACKAGE=1: the package is mounted read-only, without extracting files to disk.
+    - name: Deploy to staging slot
+      shell: bash
+      run: |
+        az webapp deploy --resource-group "${{ inputs.resource-group }}" --name "${{ inputs.app-name }}" \
+          --slot staging --src-path "${{ inputs.package }}" --type zip --async false --output none
+
+    - uses: ./.github/actions/smoke-test
+      with:
+        mode: app
+        base-url: https://${{ inputs.app-name }}-staging.azurewebsites.net
+
+    # AZURE: a swap first applies the production slot settings to the staging instances and restarts them, then calls
+    # WEBSITE_SWAP_WARMUP_PING_PATH (/health/ready) and switches traffic only after 200 responses.
+    # The instances are already warm, so users never hit a cold start. Settings marked as "sticky"
+    # (SLOT_NAME) stay with the slot. The previous version lands in staging: rollback = another swap (rollback.yml).
+    - name: Swap staging → production
+      shell: bash
+      run: |
+        az webapp deployment slot swap --resource-group "${{ inputs.resource-group }}" --name "${{ inputs.app-name }}" \
+          --slot staging --target-slot production --output none
+
+    - uses: ./.github/actions/smoke-test
+      with:
+        mode: app
+        base-url: https://${{ inputs.app-name }}.azurewebsites.net

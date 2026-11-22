@@ -1,0 +1,32 @@
+name: Azure login (OIDC)
+description: Azure CLI sign-in with a managed identity through a federated credential. No secret in GitHub.
+
+inputs:
+  client-id:
+    description: clientId of the identity (GitHub environment or repository variable).
+    required: true
+  tenant-id:
+    required: true
+  subscription-id:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # AZURE: azure/login asks GitHub for an OIDC token (sub claim, e.g. repo:org/repo:environment:prod, audience
+    # api://AzureADTokenExchange) and exchanges it in Entra ID for an access token of the identity whose federated
+    # credential trusts that subject. There is no secret in GitHub at all: clientId, tenantId and subscriptionId
+    # are not confidential. The job must have the id-token: write permission.
+    # AZURE: the access token is valid for about an hour, and the Azure CLI does not refresh it after the GitHub token expires.
+    # A longer job calls this action again before the next stage (see _deploy.yml).
+    - uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.client-id }}
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}
+
+    - name: Configure Azure CLI
+      shell: bash
+      run: |
+        az config set core.collect_telemetry=false core.only_show_errors=true \
+          extension.use_dynamic_install=yes_without_prompt --only-show-errors

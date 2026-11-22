@@ -1,0 +1,108 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/ShopFlow.Azure/ShopFlow.Azure.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Contracts/ShopFlow.Contracts.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Functions/ShopFlow.Functions.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Messaging.ServiceBus/ShopFlow.Messaging.ServiceBus.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Messaging/ShopFlow.Messaging.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Observability/ShopFlow.Observability.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Persistence.Cosmos/ShopFlow.Persistence.Cosmos.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Persistence.SqlServer/ShopFlow.Persistence.SqlServer.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Resilience/ShopFlow.Resilience.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.SharedKernel/ShopFlow.SharedKernel.csproj" />
+    <Project Path="src/BuildingBlocks/ShopFlow.Web/ShopFlow.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/tests/">
+    <Project Path="src/BuildingBlocks/tests/ShopFlow.BuildingBlocks.Tests/ShopFlow.BuildingBlocks.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Inventory/">
+    <Project Path="src/Services/Inventory/ShopFlow.Inventory.Api/ShopFlow.Inventory.Api.csproj" />
+    <Project Path="src/Services/Inventory/ShopFlow.Inventory.Application/ShopFlow.Inventory.Application.csproj" />
+    <Project Path="src/Services/Inventory/ShopFlow.Inventory.Domain/ShopFlow.Inventory.Domain.csproj" />
+    <Project Path="src/Services/Inventory/ShopFlow.Inventory.Infrastructure/ShopFlow.Inventory.Infrastructure.csproj" />
+    <Project Path="src/Services/Inventory/ShopFlow.Inventory.Worker/ShopFlow.Inventory.Worker.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Inventory/tests/">
+    <Project Path="src/Services/Inventory/tests/ShopFlow.Inventory.Api.Tests/ShopFlow.Inventory.Api.Tests.csproj" />
+    <Project Path="src/Services/Inventory/tests/ShopFlow.Inventory.IntegrationTests/ShopFlow.Inventory.IntegrationTests.csproj" />
+    <Project Path="src/Services/Inventory/tests/ShopFlow.Inventory.Testing/ShopFlow.Inventory.Testing.csproj" />
+    <Project Path="src/Services/Inventory/tests/ShopFlow.Inventory.UnitTests/ShopFlow.Inventory.UnitTests.csproj" />
+    <Project Path="tests/ShopFlow.Testing/ShopFlow.Testing.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Orders/">
+    <Project Path="src/Services/Orders/ShopFlow.Orders.Api/ShopFlow.Orders.Api.csproj" />
+    <Project Path="src/Services/Orders/ShopFlow.Orders.Application/ShopFlow.Orders.Application.csproj" />
+    <Project Path="src/Services/Orders/ShopFlow.Orders.Domain/ShopFlow.Orders.Domain.csproj" />
+    <Project Path="src/Services/Orders/ShopFlow.Orders.Infrastructure/ShopFlow.Orders.Infrastructure.csproj" />
+    <Project Path="src/Services/Orders/ShopFlow.Orders.Processors/ShopFlow.Orders.Processors.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Orders/tests/">
+    <Project Path="src/Services/Orders/tests/ShopFlow.Orders.Api.Tests/ShopFlow.Orders.Api.Tests.csproj" />
+    <Project Path="src/Services/Orders/tests/ShopFlow.Orders.IntegrationTests/ShopFlow.Orders.IntegrationTests.csproj" />
+    <Project Path="src/Services/Orders/tests/ShopFlow.Orders.Testing/ShopFlow.Orders.Testing.csproj" />
+    <Project Path="src/Services/Orders/tests/ShopFlow.Orders.UnitTests/ShopFlow.Orders.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/OrderSaga/">
+    <Project Path="src/Services/OrderSaga/ShopFlow.OrderSaga.Functions/ShopFlow.OrderSaga.Functions.csproj" />
+    <Project Path="src/Services/OrderSaga/ShopFlow.OrderSaga/ShopFlow.OrderSaga.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/OrderSaga/tests/">
+    <Project Path="src/Services/OrderSaga/tests/ShopFlow.OrderSaga.UnitTests/ShopFlow.OrderSaga.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Payments/">
+    <Project Path="src/Services/Payments/ShopFlow.Payments.Application/ShopFlow.Payments.Application.csproj" />
+    <Project Path="src/Services/Payments/ShopFlow.Payments.Domain/ShopFlow.Payments.Domain.csproj" />
+    <Project Path="src/Services/Payments/ShopFlow.Payments.Functions/ShopFlow.Payments.Functions.csproj" />
+    <Project Path="src/Services/Payments/ShopFlow.Payments.Infrastructure/ShopFlow.Payments.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Payments/tests/">
+    <Project Path="src/Services/Payments/tests/ShopFlow.Payments.UnitTests/ShopFlow.Payments.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Analytics/">
+    <Project Path="src/Services/Analytics/ShopFlow.Analytics.Application/ShopFlow.Analytics.Application.csproj" />
+    <Project Path="src/Services/Analytics/ShopFlow.Analytics.Functions/ShopFlow.Analytics.Functions.csproj" />
+    <Project Path="src/Services/Analytics/ShopFlow.Analytics.Infrastructure/ShopFlow.Analytics.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Analytics/tests/">
+    <Project Path="src/Services/Analytics/tests/ShopFlow.Analytics.UnitTests/ShopFlow.Analytics.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/CustomerReadModels/">
+    <Project Path="src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Api/ShopFlow.CustomerReadModels.Api.csproj" />
+    <Project Path="src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Application/ShopFlow.CustomerReadModels.Application.csproj" />
+    <Project Path="src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Infrastructure/ShopFlow.CustomerReadModels.Infrastructure.csproj" />
+    <Project Path="src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Projections/ShopFlow.CustomerReadModels.Projections.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/CustomerReadModels/tests/">
+    <Project Path="src/Services/CustomerReadModels/tests/ShopFlow.CustomerReadModels.Api.Tests/ShopFlow.CustomerReadModels.Api.Tests.csproj" />
+    <Project Path="src/Services/CustomerReadModels/tests/ShopFlow.CustomerReadModels.Testing/ShopFlow.CustomerReadModels.Testing.csproj" />
+    <Project Path="src/Services/CustomerReadModels/tests/ShopFlow.CustomerReadModels.UnitTests/ShopFlow.CustomerReadModels.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Notifications/">
+    <Project Path="src/Services/Notifications/ShopFlow.Notifications.Application/ShopFlow.Notifications.Application.csproj" />
+    <Project Path="src/Services/Notifications/ShopFlow.Notifications.Functions/ShopFlow.Notifications.Functions.csproj" />
+    <Project Path="src/Services/Notifications/ShopFlow.Notifications.Infrastructure/ShopFlow.Notifications.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Notifications/tests/">
+    <Project Path="src/Services/Notifications/tests/ShopFlow.Notifications.UnitTests/ShopFlow.Notifications.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Shipping/">
+    <Project Path="src/Services/Shipping/ShopFlow.Shipping.Application/ShopFlow.Shipping.Application.csproj" />
+    <Project Path="src/Services/Shipping/ShopFlow.Shipping.Domain/ShopFlow.Shipping.Domain.csproj" />
+    <Project Path="src/Services/Shipping/ShopFlow.Shipping.Functions/ShopFlow.Shipping.Functions.csproj" />
+    <Project Path="src/Services/Shipping/ShopFlow.Shipping.Infrastructure/ShopFlow.Shipping.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Shipping/tests/">
+    <Project Path="src/Services/Shipping/tests/ShopFlow.Shipping.UnitTests/ShopFlow.Shipping.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ShopFlow.Architecture.Tests/ShopFlow.Architecture.Tests.csproj" />
+    <Project Path="tests/ShopFlow.Contracts.Tests/ShopFlow.Contracts.Tests.csproj" />
+    <Project Path="tests/ShopFlow.Pact.Tests/ShopFlow.Pact.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/ShopFlow.DlqReplay/ShopFlow.DlqReplay.csproj" />
+    <Project Path="tools/ShopFlow.DlqReplay.Tests/ShopFlow.DlqReplay.Tests.csproj" />
+  </Folder>
+</Solution>

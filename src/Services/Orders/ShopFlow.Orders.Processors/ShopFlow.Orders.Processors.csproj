@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Orders.Processors</RootNamespace>
+    <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+    <!-- AZURE: the "isolated worker" model: our code runs in a separate .NET 10 process and the Functions host
+         (triggers, scaling, connections to Service Bus and Cosmos DB) in its own. That is why the application is a
+         regular executable with its own Program.cs and its own DI container. -->
+    <OutputType>Exe</OutputType>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Orders.Infrastructure\ShopFlow.Orders.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Functions\ShopFlow.Functions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.CosmosDB" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="host.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="local.settings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+</Project>

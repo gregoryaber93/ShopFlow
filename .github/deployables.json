@@ -1,0 +1,23 @@
+{
+  "$comment": "Deployable units (names as deployableUnits in infra/shared/roles.bicep) and where they come from. Read by _build.yml (what to build) and _deploy.yml (what to deploy). The Azure resource name follows the convention: app-shopflow-orders-<env>-weu, func-shopflow-<unit>-<env>-weu, ca-/caj-shopflow-<unit>-<env>-weu.",
+  "appService": [
+    { "unit": "orders-api", "project": "src/Services/Orders/ShopFlow.Orders.Api", "resource": "app-shopflow-orders" }
+  ],
+  "functions": [
+    { "unit": "orders-processors", "project": "src/Services/Orders/ShopFlow.Orders.Processors" },
+    { "unit": "order-saga", "project": "src/Services/OrderSaga/ShopFlow.OrderSaga.Functions" },
+    { "unit": "payments-processor", "project": "src/Services/Payments/ShopFlow.Payments.Functions" },
+    { "unit": "shipping-processor", "project": "src/Services/Shipping/ShopFlow.Shipping.Functions" },
+    { "unit": "notifications-processor", "project": "src/Services/Notifications/ShopFlow.Notifications.Functions" },
+    { "unit": "readmodels-projections", "project": "src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Projections" },
+    { "unit": "analytics-processor", "project": "src/Services/Analytics/ShopFlow.Analytics.Functions" }
+  ],
+  "containerApps": [
+    { "unit": "inventory-api", "dockerfile": "src/Services/Inventory/ShopFlow.Inventory.Api/Dockerfile" },
+    { "unit": "inventory-worker", "dockerfile": "src/Services/Inventory/ShopFlow.Inventory.Worker/Dockerfile" },
+    { "unit": "readmodels-api", "dockerfile": "src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Api/Dockerfile" }
+  ],
+  "containerJobs": [
+    { "unit": "inventory-migrations", "dockerfile": "src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Dockerfile.migrations" }
+  ]
+}

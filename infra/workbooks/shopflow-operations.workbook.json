@@ -1,0 +1,65 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# ShopFlow: operations overview\nSaga funnel, queue backlogs, RU cost per container and errors per service. Queries from docs/kql."
+      },
+      "name": "header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppRequests\n| where TimeGenerated > ago(1h)\n| summarize Calls = sum(ItemCount), Failures = sumif(ItemCount, Success == false), P95ms = percentile(DurationMs, 95) by AppRoleName\n| order by Failures desc",
+        "size": 1,
+        "title": "Calls and failures per service (1 h)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "requests-per-service"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppMetrics\n| where TimeGenerated > ago(6h) and Name == \"shopflow.messaging.processed\"\n| extend MessageType = tostring(Properties[\"shopflow.message.type\"]), Outcome = tostring(Properties[\"shopflow.outcome\"])\n| summarize Count = sum(Sum) by bin(TimeGenerated, 5m), MessageType\n| render timechart",
+        "size": 0,
+        "title": "Processed messages per type (saga funnel)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "timechart"
+      },
+      "name": "messages-per-type"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "CDBDataPlaneRequests\n| where TimeGenerated > ago(1h)\n| summarize RU = sum(RequestCharge), Throttled = countif(StatusCode == 429) by DatabaseName, CollectionName\n| order by RU desc",
+        "size": 1,
+        "title": "Cosmos DB: RU and 429s per container (1 h)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "name": "cosmos-ru"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppMetrics\n| where TimeGenerated > ago(6h) and Name == \"shopflow.readmodels.projection_lag\"\n| summarize P50 = percentile(Max, 50), P95 = percentile(Max, 95) by bin(TimeGenerated, 5m)\n| render timechart",
+        "size": 0,
+        "title": "customer-orders projection lag (s)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "timechart"
+      },
+      "name": "projection-lag"
+    }
+  ],
+  "isLocked": false
+}

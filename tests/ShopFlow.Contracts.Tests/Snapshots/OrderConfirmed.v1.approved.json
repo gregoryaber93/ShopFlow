@@ -1,0 +1,52 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "orderNumber": {
+      "type": "string"
+    },
+    "total": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$"
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ]
+    },
+    "confirmedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trackingNumber": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "orderNumber",
+    "total",
+    "confirmedAt"
+  ]
+}

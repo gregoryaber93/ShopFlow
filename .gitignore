@@ -1,0 +1,91 @@
+# ShopFlow .gitignore
+# Generated output, local-only configuration and secrets stay out of the repository. Generated files that tests and
+# CI depend on (pact files, schema snapshots, EF Core migrations) ARE committed: see the "Must stay tracked" section.
+
+# --- .NET build output --------------------------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+artifacts/
+publish/
+*.binlog
+*.nupkg
+*.snupkg
+efbundle
+efbundle.exe
+
+# --- Tests and coverage ---------------------------------------------------------------------------------------------
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+*.trx
+# Snapshot candidates written by a failing snapshot test (the approved file is tracked).
+*.received.*
+
+# --- IDEs and editors -------------------------------------------------------------------------------------------------
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.user
+*.suo
+*.userprefs
+*.DotSettings.user
+*.swp
+*~
+.history/
+
+# --- Azure Functions and local emulators: local settings may hold a developer's credentials ---------------------------
+local.settings.json
+!local.settings.example.json
+__azurite_db*__.json
+__blobstorage__/
+__queuestorage__/
+.azurite/
+
+# --- Local configuration and secrets ---------------------------------------------------------------------------------
+appsettings.Local.json
+appsettings.*.local.json
+.env
+.env.*
+!.env.example
+.azure/
+*.pfx
+*.p12
+*.pem
+*.key
+secrets.json
+
+# --- Bicep: compiled ARM templates are a pipeline artifact, not source ------------------------------------------------
+infra/**/*.json
+!infra/bicepconfig.json
+!infra/workbooks/*.json
+!infra/modules/messaging/messaging-topology.json
+!infra/**/*.parameters.json
+what-if.txt
+sarif/
+
+# --- Node.js (Claude Code hooks and scripts use only built-in modules) ----------------------------------------------
+node_modules/
+npm-debug.log*
+
+# --- Claude Code: personal settings stay local; shared settings, rules, agents, skills and hooks are tracked ---------
+.claude/settings.local.json
+CLAUDE.local.md
+
+# --- Merge leftovers and logs ------------------------------------------------------------------------------------------
+*.orig
+*.rej
+*.log
+
+# --- OS -------------------------------------------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Must stay tracked (do not add ignore rules for these) --------------------------------------------------------------
+# tests/ShopFlow.Pact.Tests/pacts/*.json                 CI fails when consumer tests change an uncommitted pact
+# tests/ShopFlow.Contracts.Tests/Snapshots/*.approved.json  approved contract schemas
+# src/**/Migrations/*.cs                                  EF Core migrations, designer files and the model snapshot

@@ -1,0 +1,160 @@
+{
+  "$comment": "Single source of truth for Service Bus and Event Hubs entities. Bicep reads this file through loadJsonContent() and creates the queues, topics, subscriptions with rules, and hubs from it. Tests (tests/ShopFlow.Contracts.Tests, tests/ShopFlow.Architecture.Tests) check that it agrees with the MessagingTopology constants, the contract catalog and the publishing routes in code. A 'subjects' filter is the SQL rule 'sys.Label IN (...)', a 'correlation' filter is a CorrelationFilter (Subject + application properties), no filter means all messages.",
+  "replay": {
+    "property": "ReplayTarget",
+    "$comment": "DLQ replay for directly read subscriptions (without forwardTo). On a topic with such a subscription every rule gets the condition 'ReplayTarget IS NULL' (correlation filters become SQL), and the directly read subscription gets an extra rule 'ReplayTarget = ''<name>'''. This way tools/ShopFlow.DlqReplay sends the message to the topic and only the named subscription receives it."
+  },
+  "serviceBus": {
+    "queues": [
+      {
+        "name": "inventory-commands",
+        "requiresSession": false,
+        "duplicateDetectionWindow": "PT10M",
+        "maxDeliveryCount": 5,
+        "lockDuration": "PT1M",
+        "consumer": "inventory-worker",
+        "senders": ["order-saga"],
+        "messages": ["ReserveStock", "ReleaseStock"]
+      },
+      {
+        "name": "payments-commands",
+        "requiresSession": true,
+        "duplicateDetectionWindow": "PT10M",
+        "maxDeliveryCount": 5,
+        "lockDuration": "PT1M",
+        "consumer": "payments-processor",
+        "senders": ["order-saga"],
+        "messages": ["AuthorizePayment", "CapturePayment", "VoidPayment", "RefundPayment"]
+      },
+      {
+        "name": "shipping-commands",
+        "requiresSession": false,
+        "duplicateDetectionWindow": "PT10M",
+        "maxDeliveryCount": 5,
+        "lockDuration": "PT1M",
+        "consumer": "shipping-processor",
+        "senders": ["order-saga"],
+        "messages": ["CreateShipment", "CancelShipment"]
+      },
+      {
+        "name": "saga-replies",
+        "requiresSession": true,
+        "duplicateDetectionWindow": null,
+        "maxDeliveryCount": 10,
+        "lockDuration": "PT1M",
+        "consumer": "order-saga",
+        "messages": []
+      },
+      {
+        "name": "notifications-inbox",
+        "requiresSession": false,
+        "duplicateDetectionWindow": null,
+        "maxDeliveryCount": 10,
+        "lockDuration": "PT1M",
+        "consumer": "notifications-processor",
+        "messages": []
+      },
+      {
+        "name": "readmodels-inbox",
+        "requiresSession": true,
+        "duplicateDetectionWindow": null,
+        "maxDeliveryCount": 10,
+        "lockDuration": "PT1M",
+        "consumer": "readmodels-projections",
+        "messages": []
+      },
+      {
+        "name": "analytics-inbox",
+        "requiresSession": false,
+        "duplicateDetectionWindow": null,
+        "maxDeliveryCount": 10,
+        "lockDuration": "PT1M",
+        "consumer": "analytics-processor",
+        "messages": []
+      },
+      {
+        "name": "invoice-blob-events",
+        "requiresSession": false,
+        "duplicateDetectionWindow": "PT10M",
+        "maxDeliveryCount": 10,
+        "lockDuration": "PT1M",
+        "consumer": "payments-processor",
+        "messages": [],
+        "$comment": "Fed by the Event Grid system topic (CloudEvents 1.0), not by a ShopFlow outbox."
+      }
+    ],
+    "topics": [
+      {
+        "name": "orders-events",
+        "duplicateDetectionWindow": "PT10M",
+        "publisher": "orders-processors",
+        "messages": ["OrderSubmitted", "OrderConfirmed", "OrderRejected", "OrderCancellationRequested", "OrderCancelled", "OrderCompleted"],
+        "subscriptions": [
+          { "name": "saga-start", "filter": { "correlation": { "subject": "OrderSubmitted", "properties": { "ContractVersion": "2" } } }, "forwardTo": null, "consumer": "order-saga", "maxDeliveryCount": 10 },
+          { "name": "saga", "filter": { "correlation": { "subject": "OrderCancellationRequested" } }, "forwardTo": "saga-replies", "maxDeliveryCount": 10 },
+          { "name": "notifications", "filter": { "subjects": ["OrderConfirmed", "OrderRejected", "OrderCancelled"] }, "forwardTo": "notifications-inbox", "maxDeliveryCount": 10 },
+          { "name": "inventory", "filter": { "correlation": { "subject": "OrderConfirmed" } }, "forwardTo": "inventory-commands", "maxDeliveryCount": 10 },
+          { "name": "readmodels", "filter": null, "forwardTo": "readmodels-inbox", "maxDeliveryCount": 10 },
+          { "name": "analytics", "filter": null, "forwardTo": "analytics-inbox", "maxDeliveryCount": 10 }
+        ]
+      },
+      {
+        "name": "inventory-events",
+        "duplicateDetectionWindow": "PT10M",
+        "publisher": "inventory-worker",
+        "messages": ["StockReserved", "StockReservationFailed", "StockReleased", "StockLevelLow", "ProductPriceChanged"],
+        "subscriptions": [
+          { "name": "saga", "filter": { "subjects": ["StockReserved", "StockReservationFailed", "StockReleased"] }, "forwardTo": "saga-replies", "maxDeliveryCount": 10 },
+          { "name": "notifications", "filter": { "correlation": { "subject": "StockLevelLow" } }, "forwardTo": "notifications-inbox", "maxDeliveryCount": 10 },
+          { "name": "analytics", "filter": null, "forwardTo": "analytics-inbox", "maxDeliveryCount": 10 }
+        ]
+      },
+      {
+        "name": "payments-events",
+        "duplicateDetectionWindow": "PT10M",
+        "publisher": "payments-processor",
+        "messages": ["PaymentAuthorized", "PaymentDeclined", "PaymentCaptured", "PaymentCaptureFailed", "PaymentVoided", "PaymentRefunded", "InvoiceIssued"],
+        "subscriptions": [
+          { "name": "saga", "filter": { "subjects": ["PaymentAuthorized", "PaymentDeclined", "PaymentCaptured", "PaymentCaptureFailed", "PaymentVoided", "PaymentRefunded"] }, "forwardTo": "saga-replies", "maxDeliveryCount": 10 },
+          { "name": "invoicing", "filter": { "correlation": { "subject": "PaymentCaptured" } }, "forwardTo": null, "consumer": "payments-processor", "maxDeliveryCount": 10 },
+          { "name": "notifications", "filter": { "subjects": ["PaymentRefunded", "InvoiceIssued"] }, "forwardTo": "notifications-inbox", "maxDeliveryCount": 10 },
+          { "name": "readmodels", "filter": null, "forwardTo": "readmodels-inbox", "maxDeliveryCount": 10 },
+          { "name": "analytics", "filter": null, "forwardTo": "analytics-inbox", "maxDeliveryCount": 10 }
+        ]
+      },
+      {
+        "name": "shipping-events",
+        "duplicateDetectionWindow": "PT10M",
+        "publisher": "shipping-processor",
+        "messages": ["ShipmentCreated", "ShipmentCreationFailed", "ShipmentCancelled", "ShipmentDispatched", "ShipmentDelivered"],
+        "subscriptions": [
+          { "name": "saga", "filter": { "subjects": ["ShipmentCreated", "ShipmentCreationFailed", "ShipmentCancelled"] }, "forwardTo": "saga-replies", "maxDeliveryCount": 10 },
+          { "name": "orders", "filter": { "subjects": ["ShipmentDispatched", "ShipmentDelivered"] }, "forwardTo": null, "consumer": "orders-processors", "maxDeliveryCount": 10 },
+          { "name": "notifications", "filter": { "subjects": ["ShipmentDispatched", "ShipmentDelivered"] }, "forwardTo": "notifications-inbox", "maxDeliveryCount": 10 },
+          { "name": "readmodels", "filter": null, "forwardTo": "readmodels-inbox", "maxDeliveryCount": 10 },
+          { "name": "analytics", "filter": null, "forwardTo": "analytics-inbox", "maxDeliveryCount": 10 }
+        ]
+      }
+    ]
+  },
+  "eventHubs": {
+    "hubs": [
+      {
+        "name": "clickstream",
+        "partitionCount": 8,
+        "retentionHours": 24,
+        "partitionKey": "sessionId",
+        "capture": true,
+        "consumerGroups": ["cg-funnel-aggregator"]
+      },
+      {
+        "name": "business-events",
+        "partitionCount": 4,
+        "retentionHours": 72,
+        "partitionKey": "orderId",
+        "capture": true,
+        "consumerGroups": ["cg-business-metrics"]
+      }
+    ]
+  }
+}

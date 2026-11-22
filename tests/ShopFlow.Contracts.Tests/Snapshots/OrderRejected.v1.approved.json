@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "orderNumber": {
+      "type": "string"
+    },
+    "reasonCode": {
+      "type": "string"
+    },
+    "reasonDescription": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rejectedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "orderNumber",
+    "reasonCode",
+    "rejectedAt"
+  ]
+}

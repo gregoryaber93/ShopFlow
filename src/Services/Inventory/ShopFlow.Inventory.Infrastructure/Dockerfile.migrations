@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1
+#
+# inventory-migrations image: an EF Core migration bundle run as a Container Apps job (manual trigger) in the VNet.
+# Built in .github/workflows/_build.yml together with the application images, tag = commit SHA.
+#   docker build -f src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Dockerfile.migrations -t inventory-migrations .
+
+ARG DOTNET_VERSION=10.0
+
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
+WORKDIR /src
+
+COPY global.json nuget.config dotnet-tools.json Directory.Build.props Directory.Build.targets Directory.Packages.props .editorconfig ./
+COPY src/BuildingBlocks/ src/BuildingBlocks/
+COPY src/Services/Inventory/ src/Services/Inventory/
+
+RUN dotnet tool restore
+
+# WHY: a bundle is a single executable with the migrations and the .NET runtime (--self-contained). The final image has
+# no SDK and no dotnet-ef. The bundle does not connect to the database at build time: it gets the connection string at
+# run time (the --connection argument in the job definition in infra/layers/apps.bicep) and skips migrations already
+# applied based on the messaging.__EFMigrationsHistory table.
+RUN dotnet ef migrations bundle \
+    --project src/Services/Inventory/ShopFlow.Inventory.Infrastructure/ShopFlow.Inventory.Infrastructure.csproj \
+    --configuration Release --self-contained --target-runtime linux-x64 --output /out/efbundle
+
+# AZURE/WHY: runtime-deps, because the bundle carries its own runtime. The "extra" variant has the ICU library:
+# Microsoft.Data.SqlClient compares names culture-aware, and the bundle (unlike the applications) has no InvariantGlobalization.
+FROM mcr.microsoft.com/dotnet/runtime-deps:${DOTNET_VERSION}-noble-chiseled-extra AS final
+WORKDIR /app
+COPY --from=build /out/efbundle .
+
+ENTRYPOINT ["./efbundle"]

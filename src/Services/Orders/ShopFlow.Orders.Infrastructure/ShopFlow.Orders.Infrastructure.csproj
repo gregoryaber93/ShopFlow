@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Orders.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Orders.Application\ShopFlow.Orders.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Azure\ShopFlow.Azure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Observability\ShopFlow.Observability.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Persistence.Cosmos\ShopFlow.Persistence.Cosmos.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Resilience\ShopFlow.Resilience.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShopFlow.Orders.UnitTests" />
+    <InternalsVisibleTo Include="ShopFlow.Orders.IntegrationTests" />
+    <InternalsVisibleTo Include="ShopFlow.Pact.Tests" />
+  </ItemGroup>
+
+</Project>

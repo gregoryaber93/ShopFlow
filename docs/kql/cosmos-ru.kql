@@ -1,0 +1,42 @@
+// Cosmos DB cost and throttling.
+//   - CDBDataPlaneRequests, CDBPartitionKeyRUConsumption: the account's diagnostic settings (resource-specific tables),
+//   - shopflow.cosmos.request_charge: an application metric (CosmosTelemetry) with the container and operation name,
+//   - the shopflow.cosmos.request_charge attribute on the request span: the RU total of one HTTP request or message.
+// Runbook: docs/runbooks/cosmos-throttling.md. Costs: docs/cost.md.
+
+// --- 1. RU and 429s per database and container (workbook: "Cosmos DB: RU and 429s per container") --------------------
+CDBDataPlaneRequests
+| where TimeGenerated > ago(1h)
+| summarize RU = round(sum(RequestCharge)), Requests = count(), Throttled = countif(StatusCode == 429)
+    by DatabaseName, CollectionName
+| extend ThrottledPct = round(100.0 * Throttled / Requests, 2)
+| order by RU desc
+
+// --- 2. 429s per container and operation -----------------------------------------------------------------------------
+CDBDataPlaneRequests
+| where TimeGenerated > ago(1h) and StatusCode == 429
+| summarize Throttled = count(), AvgRU = round(avg(RequestCharge), 1) by bin(TimeGenerated, 5m), CollectionName, OperationName
+| order by TimeGenerated desc, Throttled desc
+
+// --- 3. Hot partition keys -------------------------------------------------------------------------------------------
+CDBPartitionKeyRUConsumption
+| where TimeGenerated > ago(1h)
+| summarize RU = round(sum(todouble(RequestCharge))) by DatabaseName, CollectionName, PartitionKey
+| top 20 by RU desc
+
+// --- 4. RU per application operation (which code generates the cost) -------------------------------------------------
+AppMetrics
+| where TimeGenerated > ago(24h) and Name == "shopflow.cosmos.request_charge"
+| extend Container = tostring(Properties["db.cosmosdb.container"]), Operation = tostring(Properties["db.operation.name"])
+| summarize RU = round(sum(Sum)), Calls = sum(ItemCount) by AppRoleName, Container, Operation
+| extend AvgRU = round(RU / Calls, 1)
+| order by RU desc
+
+// --- 5. The most expensive HTTP requests and message handlers (RU total on the span) ---------------------------------
+AppRequests
+| where TimeGenerated > ago(1h)
+| extend RU = todouble(Properties["shopflow.cosmos.request_charge"])
+| where isnotnull(RU)
+| summarize Calls = sum(ItemCount), AvgRU = round(avg(RU), 1), P95RU = round(percentile(RU, 95), 1) by AppRoleName, Name
+| order by AvgRU desc
+| take 20

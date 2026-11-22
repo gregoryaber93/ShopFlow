@@ -1,0 +1,23 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "Azure__UseDeveloperCredentials": "true",
+    "Cosmos__accountEndpoint": "https://cosmos-shopflow-dev-weu.documents.azure.com:443/",
+    "Cosmos__DatabaseName": "notifications",
+    "ServiceBus__fullyQualifiedNamespace": "sbns-shopflow-dev-weu.servicebus.windows.net",
+    "Communication__Endpoint": "https://acs-shopflow-dev.europe.communication.azure.com",
+    "Communication__EmailSender": "DoNotReply@notify-dev.shopflow.example",
+    "Communication__EmailReplyTo": "support@shopflow.example",
+    "Communication__SmsSender": "+48000000000",
+    "CustomerDirectory__TenantId": "00000000-0000-0000-0000-000000000000",
+    "CustomerDirectory__ClientId": "00000000-0000-0000-0000-000000000000",
+    "InvoiceLinks__serviceUri": "https://stshopflowdocsdevweu.blob.core.windows.net",
+    "Notifications__ShopBaseUrl": "https://dev.shopflow.example/",
+    "Notifications__OperationsEmail": "ops-dev@shopflow.example",
+    "Notifications__CarrierTrackingUrls__DPD": "https://tracking.carrier.example/parcels/{trackingNumber}",
+    "AppConfiguration__Endpoint": "https://appcs-shopflow-dev-weu.azconfig.io",
+    "AppConfiguration__KeyPrefix": "Notifications:"
+  }
+}

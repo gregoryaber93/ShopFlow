@@ -1,0 +1,55 @@
+name: Run database migrations
+description: Runs the EF Core migration bundle as a Container Apps job in the VNet and waits for the result.
+
+inputs:
+  resource-group:
+    required: true
+  job-name:
+    required: true
+  image:
+    description: Full name of the inventory-migrations image with the tag (commit SHA).
+    required: true
+  timeout-minutes:
+    description: Matches the job's replicaTimeout (1800 s).
+    default: '30'
+
+runs:
+  using: composite
+  steps:
+    # AZURE: the Azure SQL database has only a private endpoint, and the runner (even in the VNet) never connects to it.
+    # Migrations are executed by a Container Apps job in an environment attached to the VNet, with an identity that has DDL rights.
+    # The pipeline only changes the job's image and starts it; both calls go through Azure Resource Manager.
+    # WHY: migrations run before the applications are deployed, so the schema must work with the old and the new version at once
+    # (expand/contract): a column is added in one release and removed in a later one, once the old code no longer runs.
+    - name: Update job image
+      shell: bash
+      run: |
+        az containerapp job update --name "${{ inputs.job-name }}" --resource-group "${{ inputs.resource-group }}" \
+          --image "${{ inputs.image }}" --output none
+
+    - name: Start and wait
+      shell: bash
+      run: |
+        execution=$(az containerapp job start --name "${{ inputs.job-name }}" \
+          --resource-group "${{ inputs.resource-group }}" --query name --output tsv)
+        echo "Job execution: $execution"
+
+        deadline=$(( $(date +%s) + ${{ inputs.timeout-minutes }} * 60 ))
+        while [ "$(date +%s)" -lt "$deadline" ]; do
+          status=$(az containerapp job execution show --name "${{ inputs.job-name }}" \
+            --resource-group "${{ inputs.resource-group }}" --job-execution-name "$execution" \
+            --query properties.status --output tsv)
+          case "$status" in
+            Succeeded)
+              echo "Migrations applied."
+              exit 0 ;;
+            Failed|Stopped|Degraded)
+              # Container logs are in Log Analytics (table ContainerAppConsoleLogs_CL, column ContainerJobName_s).
+              echo "::error title=Migrations::Job $execution ended with status $status. Logs: ContainerAppConsoleLogs_CL in Log Analytics."
+              exit 1 ;;
+          esac
+          sleep 15
+        done
+
+        echo "::error title=Migrations::Job $execution did not finish within ${{ inputs.timeout-minutes }} min."
+        exit 1

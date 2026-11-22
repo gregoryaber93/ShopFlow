@@ -1,0 +1,67 @@
+# Release from main: CI → artifacts → dev → test (approval) → prod (approval).
+# The same commit and the same artifacts go through all environments.
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      deploy-all:
+        description: Deploy all units (e.g. after recreating an environment), not only the changed ones.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
+  build:
+    needs: ci
+    uses: ./.github/workflows/_build.yml
+    # The calling job's permissions are the upper bound for the jobs in the called workflow.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+  dev:
+    needs: build
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: dev
+      deploy-all: ${{ inputs.deploy-all || false }}
+    permissions:
+      contents: read
+      id-token: write
+
+  # WHY: the test and prod environments have required reviewers and a "main branch only" rule in GitHub. The job waits for
+  # approval before it gets an OIDC token, so without approval there is not even a sign-in to Azure.
+  test:
+    needs: dev
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: test
+      deploy-all: ${{ inputs.deploy-all || false }}
+    permissions:
+      contents: read
+      id-token: write
+
+  prod:
+    needs: test
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: prod
+      deploy-all: ${{ inputs.deploy-all || false }}
+    permissions:
+      contents: read
+      id-token: write

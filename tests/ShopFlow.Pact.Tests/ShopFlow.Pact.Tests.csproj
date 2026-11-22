@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Consumers: the real HTTP client code and message handler code. -->
+    <ProjectReference Include="..\..\src\Services\Orders\ShopFlow.Orders.Infrastructure\ShopFlow.Orders.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Orders\tests\ShopFlow.Orders.Testing\ShopFlow.Orders.Testing.csproj" />
+    <!-- Providers: the real API (Kestrel) and the real mapping of domain events to contracts. -->
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Api\ShopFlow.Inventory.Api.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\tests\ShopFlow.Inventory.Testing\ShopFlow.Inventory.Testing.csproj" />
+    <ProjectReference Include="..\..\src\Services\Shipping\ShopFlow.Shipping.Application\ShopFlow.Shipping.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Testing\ShopFlow.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="PactNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="pacts\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

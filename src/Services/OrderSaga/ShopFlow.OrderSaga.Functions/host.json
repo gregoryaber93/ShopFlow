@@ -1,0 +1,42 @@
+{
+  "version": "2.0",
+  "telemetryMode": "OpenTelemetry",
+  "logging": {
+    "logLevel": {
+      "default": "Information",
+      "Host.Aggregator": "Warning",
+      "Host.Triggers.DurableTask": "Information",
+      "DurableTask.Core": "Warning",
+      "Azure.Core": "Warning"
+    }
+  },
+  "extensions": {
+    "durableTask": {
+      "hubName": "%TASKHUB_NAME%",
+      "defaultVersion": "1.0",
+      "versionMatchStrategy": "CurrentOrOlder",
+      "versionFailureStrategy": "Reject",
+      "storageProvider": {
+        "type": "azureManaged",
+        "connectionStringName": "DURABLE_TASK_SCHEDULER_CONNECTION_STRING"
+      },
+      "maxConcurrentOrchestratorFunctions": 50,
+      "maxConcurrentActivityFunctions": 20
+    },
+    "serviceBus": {
+      "autoCompleteMessages": false,
+      "prefetchCount": 0,
+      "maxConcurrentCalls": 16,
+      "maxConcurrentSessions": 16,
+      "sessionIdleTimeout": "00:00:05",
+      "maxAutoLockRenewalDuration": "00:05:00",
+      "clientRetryOptions": {
+        "mode": "Exponential",
+        "tryTimeout": "00:01:00",
+        "delay": "00:00:00.80",
+        "maxDelay": "00:00:30",
+        "maxRetries": 5
+      }
+    }
+  }
+}

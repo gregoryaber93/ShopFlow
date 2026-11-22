@@ -1,0 +1,99 @@
+# Publishes the ShopFlow.Contracts package to GitHub Packages on a contracts/v<version> tag, e.g. contracts/v1.2.0.
+# Services in the monorepo use ProjectReference; the package is for consumers outside the repository (data warehouse,
+# partners). Versioning rules: the comment in ShopFlow.Contracts.csproj.
+name: contracts-publish
+
+on:
+  push:
+    tags: ['contracts/v*']
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: src/BuildingBlocks/ShopFlow.Contracts/ShopFlow.Contracts.csproj
+  FEED: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # the previous contracts tag is the baseline for package validation
+
+      - uses: ./.github/actions/setup-dotnet
+
+      # WHY: the version in the tag must match VersionPrefix in the project. The project is the source of truth (the comment
+      # next to the version says what changed), and the tag only triggers publishing.
+      - name: Version
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#contracts/v}"
+          declared=$(dotnet msbuild "$PROJECT" -getProperty:VersionPrefix)
+          if [ "$version" != "$declared" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME, but the VersionPrefix in the project is $declared."
+            exit 1
+          fi
+          previous=$(git describe --tags --abbrev=0 --match 'contracts/v*' "$GITHUB_REF_NAME^" 2>/dev/null || true)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "baseline=${previous#contracts/v}" >> "$GITHUB_OUTPUT"
+          echo "Version $version, previous: ${previous:-none}"
+
+      - name: Contract tests
+        run: dotnet test --project tests/ShopFlow.Contracts.Tests --configuration Release
+
+      # The repository nuget.config maps all packages to nuget.org (protection against dependency confusion).
+      # Package validation downloads the previous ShopFlow.Contracts version from GitHub Packages, so only while packing
+      # do we use a configuration that maps ShopFlow.Contracts → the organization feed.
+      - name: NuGet config for packing
+        if: steps.version.outputs.baseline != ''
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > "$RUNNER_TEMP/nuget.pack.config" <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+              <add key="shopflow" value="$FEED" />
+            </packageSources>
+            <packageSourceCredentials>
+              <shopflow>
+                <add key="Username" value="github-actions" />
+                <add key="ClearTextPassword" value="$TOKEN" />
+              </shopflow>
+            </packageSourceCredentials>
+            <packageSourceMapping>
+              <packageSource key="nuget.org"><package pattern="*" /></packageSource>
+              <packageSource key="shopflow"><package pattern="ShopFlow.Contracts" /></packageSource>
+            </packageSourceMapping>
+          </configuration>
+          EOF
+
+      # WHY: package validation (.NET SDK) compares the public API with the previous published version and stops packing on a
+      # breaking change (a removed type, a changed signature). The snapshot tests in ShopFlow.Contracts.Tests protect the JSON
+      # shape of messages; validation protects the code of consumers who compile against the package.
+      - name: Pack
+        run: |
+          args=(--configuration Release --output out -p:Version=${{ steps.version.outputs.version }}
+                -p:SourceRevisionId=${{ github.sha }} -p:EnablePackageValidation=true)
+          if [ -n "${{ steps.version.outputs.baseline }}" ]; then
+            args+=(-p:PackageValidationBaselineVersion=${{ steps.version.outputs.baseline }}
+                   -p:RestoreConfigFile="$RUNNER_TEMP/nuget.pack.config")
+          fi
+          dotnet pack "$PROJECT" "${args[@]}"
+
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: out/*.nupkg
+
+      # Versions in the feed are immutable: re-running for the same version fails (no --skip-duplicate).
+      - name: Push
+        run: dotnet nuget push "out/*.nupkg" --source "$FEED" --api-key "${{ secrets.GITHUB_TOKEN }}"

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WHY: a plain library, without Microsoft.Azure.Functions.Worker.Sdk. The SDK generates function metadata
+       and is needed only in the function app project; in a library it would complain that there are no functions. -->
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Functions</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Messaging.ServiceBus\ShopFlow.Messaging.ServiceBus.csproj" />
+    <ProjectReference Include="..\ShopFlow.Observability\ShopFlow.Observability.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.OpenTelemetry" />
+  </ItemGroup>
+
+</Project>

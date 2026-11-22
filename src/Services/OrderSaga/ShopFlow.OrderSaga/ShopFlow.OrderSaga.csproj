@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WHY: the saga logic lives in a plain library and the Functions host in a separate project. The orchestration flow,
+       reply mapping and the orders-api client can then be tested without the Functions Worker SDK generators and without
+       a host. The ShopFlow.OrderSaga.Functions project only wires these classes to triggers. -->
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.OrderSaga</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Messaging\ShopFlow.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Persistence.Cosmos\ShopFlow.Persistence.Cosmos.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.DurableTask" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShopFlow.OrderSaga.UnitTests" />
+  </ItemGroup>
+
+</Project>

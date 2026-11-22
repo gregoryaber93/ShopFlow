@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared tools for component tests of all APIs (not a test project: the name does not end with Tests). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\ShopFlow.Web\ShopFlow.Web.csproj" />
+  </ItemGroup>
+
+</Project>

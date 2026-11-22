@@ -1,0 +1,192 @@
+# Reusable: deployment of one environment in one job, on a runner in that environment's VNet.
+#
+# WHY: one job instead of separate jobs (infra, migrations, applications). A GitHub environment with required reviewers
+# asks for approval for every job that references it, so five jobs = five prod approvals at different moments.
+# Steps in one job have one approval and a fixed order. The cost is no parallelism.
+name: _deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: dev, test or prod
+        type: string
+        required: true
+      deploy-all:
+        description: Deploy all units, regardless of changes since the last deployment.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy (${{ inputs.environment }})
+    # AZURE: a group of GitHub-hosted runners with a network interface in the environment's VNet (GitHub.Network/networkSettings
+    # in infra/modules/network/github-runners.bicep). Only from here are the App Service and Functions SCM endpoints visible.
+    runs-on:
+      group: shopflow-${{ inputs.environment }}
+    # GitHub environment: approval (test, prod), allowed branches (main) and the OIDC token subject
+    # repo:<repo>:environment:<env>, which this environment's deployment identity trusts.
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.PUBLIC_API_URL }}
+    # WHY: the concurrency group is shared by release.yml and rollback.yml: two deployments of one environment never run at
+    # the same time. GitHub keeps only one pending run per group, and a newer one cancels the older pending one. No changes
+    # are lost, because the newer release computes the differences from the last successful deployment.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      RG_APPS: rg-shopflow-${{ inputs.environment }}-weu-apps
+      REGISTRY: ${{ vars.ACR_NAME }}.azurecr.io
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # history is needed to compare with the last deployed commit
+
+      - uses: ./.github/actions/azure-login
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # WHY: differences are computed from the commit last deployed to THIS environment (a resource group tag), not from the
+      # previous commit on main. Prod is sometimes several releases behind dev; counting from the previous commit would skip
+      # changes from releases prod never got (e.g. cancelled in the queue or rejected at approval).
+      - name: Last deployed commit
+        id: base
+        run: |
+          sha=$(az group show --name "$RG_APPS" --query tags.deployedCommit --output tsv)
+          if [ -n "$sha" ] && git merge-base --is-ancestor "$sha" "$GITHUB_SHA" 2>/dev/null; then
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+            echo "Last deployed commit: $sha"
+          else
+            echo "No known deployment (first deployment, rollback or rewritten history): deploying everything."
+          fi
+
+      - name: Changes since last deployment
+        id: filter
+        if: steps.base.outputs.sha != '' && !inputs.deploy-all
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ steps.base.outputs.sha }}
+          ref: ${{ github.sha }}
+          filters: .github/filters.yml
+
+      - name: Deployment plan
+        id: plan
+        env:
+          CHANGES: ${{ steps.filter.outputs.changes || '[]' }}
+          DEPLOY_ALL: ${{ steps.base.outputs.sha == '' || inputs.deploy-all }}
+        run: |
+          if [ "$DEPLOY_ALL" = "true" ]; then
+            changes=$(jq -c '[.appService, .functions, .containerApps, .containerJobs | .[].unit] + ["infra"]' .github/deployables.json)
+          else
+            changes="$CHANGES"
+          fi
+          pick() {
+            jq -r --argjson changes "$changes" "[.$1[].unit | select(IN(\$changes[]))] | join(\" \")" .github/deployables.json
+          }
+          {
+            echo "infra=$(jq -r 'any(.[]; . == "infra")' <<< "$changes")"
+            echo "migrations=$(pick containerJobs)"
+            echo "container-apps=$(pick containerApps)"
+            echo "app-service=$(pick appService)"
+            echo "functions=$(pick functions)"
+          } | tee -a "$GITHUB_OUTPUT" | sed 's/^/- /' | { echo "### Deployment plan: $ENVIRONMENT"; cat; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: packages
+
+      # Order: infrastructure → database schema → synchronously called APIs (inventory, readmodels) →
+      # orders-api, which calls them → functions. WHY: provider before consumer. Versioned contracts and Pact enforce
+      # backward compatibility, so the order is not a correctness requirement, but it shortens the window of mixed versions.
+      - name: Infrastructure
+        if: steps.plan.outputs.infra == 'true'
+        uses: ./.github/actions/bicep-deploy
+        with:
+          environment: ${{ inputs.environment }}
+          image-tag: ${{ github.sha }}
+          apim-private-only: ${{ vars.APIM_PRIVATE_ONLY || 'false' }}
+
+      # Sign in again before the next stages: an infrastructure deployment (e.g. a new APIM instance) can take longer
+      # than the lifetime of the access token from the first sign-in.
+      - uses: ./.github/actions/azure-login
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Database migrations
+        if: steps.plan.outputs.migrations != ''
+        uses: ./.github/actions/run-migrations
+        with:
+          resource-group: ${{ env.RG_APPS }}
+          job-name: caj-shopflow-inventory-migrations-${{ inputs.environment }}-weu
+          image: ${{ env.REGISTRY }}/inventory-migrations:${{ github.sha }}
+
+      - name: inventory-api
+        if: contains(steps.plan.outputs.container-apps, 'inventory-api')
+        uses: ./.github/actions/deploy-containerapp
+        with:
+          app-name: ca-shopflow-inventory-api-${{ inputs.environment }}-weu
+          resource-group: ${{ env.RG_APPS }}
+          image: ${{ env.REGISTRY }}/inventory-api:${{ github.sha }}
+
+      - name: inventory-worker
+        if: contains(steps.plan.outputs.container-apps, 'inventory-worker')
+        uses: ./.github/actions/deploy-containerapp
+        with:
+          app-name: ca-shopflow-inventory-worker-${{ inputs.environment }}-weu
+          resource-group: ${{ env.RG_APPS }}
+          image: ${{ env.REGISTRY }}/inventory-worker:${{ github.sha }}
+
+      - name: readmodels-api
+        if: contains(steps.plan.outputs.container-apps, 'readmodels-api')
+        uses: ./.github/actions/deploy-containerapp
+        with:
+          app-name: ca-shopflow-readmodels-api-${{ inputs.environment }}-weu
+          resource-group: ${{ env.RG_APPS }}
+          image: ${{ env.REGISTRY }}/readmodels-api:${{ github.sha }}
+
+      - uses: ./.github/actions/azure-login
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: orders-api
+        if: contains(steps.plan.outputs.app-service, 'orders-api')
+        uses: ./.github/actions/deploy-appservice-slot
+        with:
+          app-name: app-shopflow-orders-${{ inputs.environment }}-weu
+          resource-group: ${{ env.RG_APPS }}
+          package: packages/orders-api.zip
+
+      - name: Functions
+        if: steps.plan.outputs.functions != ''
+        uses: ./.github/actions/deploy-functionapp
+        with:
+          units: ${{ steps.plan.outputs.functions }}
+          environment: ${{ inputs.environment }}
+          packages-dir: packages
+
+      - name: Smoke test (Front Door → APIM)
+        uses: ./.github/actions/smoke-test
+        with:
+          mode: edge
+          base-url: ${{ vars.PUBLIC_API_URL }}
+
+      # Record the deployed commit only after a successful smoke test. The next release computes changes from here.
+      # Redeploying the bootstrap overwrites the group's tags; the next release then deploys everything (the safe direction).
+      - name: Record deployed commit
+        run: az group update --name "$RG_APPS" --set "tags.deployedCommit=$GITHUB_SHA" --output none

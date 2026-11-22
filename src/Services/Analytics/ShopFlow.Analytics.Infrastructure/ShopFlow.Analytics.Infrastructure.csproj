@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Analytics.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Analytics.Application\ShopFlow.Analytics.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Azure\ShopFlow.Azure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Observability\ShopFlow.Observability.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Persistence.Cosmos\ShopFlow.Persistence.Cosmos.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Messaging.EventHubs" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShopFlow.Analytics.UnitTests" />
+  </ItemGroup>
+
+</Project>

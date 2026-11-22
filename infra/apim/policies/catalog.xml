@@ -1,0 +1,28 @@
+<!--
+  Product catalog: anonymous. Front Door caches the responses (the /catalog/* route rule in front-door.bicep)
+  based on the Cache-Control headers from inventory-api.
+  AZURE: the v2 tiers of API Management have no built-in cache, and an external APIM cache requires a Redis access key,
+  which we have disabled. The Front Door edge cache is closer to the client and does not load the gateway.
+-->
+<policies>
+  <inbound>
+    <base />
+    <!-- Read-only: the customer-facing catalog accepts no changes (catalog management is a separate back-office API). -->
+    <choose>
+      <when condition="@(context.Request.Method != "GET" && context.Request.Method != "HEAD")">
+        <return-response>
+          <set-status code="405" reason="Method Not Allowed" />
+        </return-response>
+      </when>
+    </choose>
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

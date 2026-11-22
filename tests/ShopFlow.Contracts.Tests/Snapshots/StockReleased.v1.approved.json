@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "reservationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "releasedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "reservationId",
+    "releasedAt"
+  ]
+}

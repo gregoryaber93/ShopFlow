@@ -1,0 +1,64 @@
+# Paths → deployable units (dorny/paths-filter). Filter names are the unit names from infra/shared/roles.bicep,
+# so the filter result (the list of matched names) is directly the list of units to deploy.
+# Used in ci.yml (which integration tests to run) and in _deploy.yml (what to deploy to a given environment).
+# Helper filters (shared, orders, inventory, readmodels) exist for YAML anchors and also appear in the result;
+# scripts take from the result only the names they know.
+
+# A change to shared code or build settings affects every .NET unit.
+shared: &shared
+  - 'src/BuildingBlocks/**'
+  - 'Directory.Build.props'
+  - 'Directory.Build.targets'
+  - 'Directory.Packages.props'
+  - 'global.json'
+  - 'nuget.config'
+
+orders: &orders
+  - *shared
+  - 'src/Services/Orders/**'
+
+inventory: &inventory
+  - *shared
+  - 'src/Services/Inventory/**'
+
+readmodels: &readmodels
+  - *shared
+  - 'src/Services/CustomerReadModels/**'
+
+infra:
+  - 'infra/**'
+
+orders-api: *orders
+orders-processors: *orders
+
+order-saga:
+  - *shared
+  - 'src/Services/OrderSaga/**'
+
+inventory-api: *inventory
+inventory-worker: *inventory
+
+# WHY: the migrations job runs only when the migrations changed. Inventory application code changes more often
+# than the database schema, and every job run adds minutes to the deployment.
+inventory-migrations:
+  - 'src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Persistence/Migrations/**'
+  - 'src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Dockerfile.migrations'
+
+payments-processor:
+  - *shared
+  - 'src/Services/Payments/**'
+
+shipping-processor:
+  - *shared
+  - 'src/Services/Shipping/**'
+
+notifications-processor:
+  - *shared
+  - 'src/Services/Notifications/**'
+
+readmodels-projections: *readmodels
+readmodels-api: *readmodels
+
+analytics-processor:
+  - *shared
+  - 'src/Services/Analytics/**'

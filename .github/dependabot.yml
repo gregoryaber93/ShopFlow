@@ -1,0 +1,44 @@
+# Dependency updates: NuGet packages, GitHub Actions (including in composite actions) and Dockerfile base images.
+version: 2
+
+updates:
+  # WHY: groups instead of a separate PR per package. Azure SDK and Microsoft.Extensions packages are released together
+  # and depend on each other; updated one by one they cause version conflicts (NU1605) in subsequent PRs.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      azure-sdk:
+        patterns: ['Azure.*', 'Microsoft.Azure.*']
+      microsoft-extensions:
+        patterns: ['Microsoft.Extensions.*', 'Microsoft.AspNetCore.*', 'Microsoft.EntityFrameworkCore*']
+      opentelemetry:
+        patterns: ['OpenTelemetry*', 'Azure.Monitor.OpenTelemetry*']
+      testing:
+        patterns: ['xunit*', 'Shouldly', 'NSubstitute', 'Testcontainers*', 'PactNet', 'NetArchTest*']
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+    labels: [dependencies, ci]
+
+  # .NET base images: OS security patches in chiseled images arrive as a new digest of the same tag.
+  - package-ecosystem: docker
+    directories:
+      - /src/Services/Inventory/ShopFlow.Inventory.Api
+      - /src/Services/Inventory/ShopFlow.Inventory.Worker
+      - /src/Services/Inventory/ShopFlow.Inventory.Infrastructure
+      - /src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Api
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker]

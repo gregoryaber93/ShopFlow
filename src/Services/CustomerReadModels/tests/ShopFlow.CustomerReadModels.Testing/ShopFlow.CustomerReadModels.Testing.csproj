@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared fakes for unit and component tests (not a test project: the name does not end with Tests). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\ShopFlow.CustomerReadModels.Application\ShopFlow.CustomerReadModels.Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WHY: the application layer knows message contracts and messaging abstractions (IOutbox,
+       IMessageHandler), but not Service Bus, Cosmos DB or HTTP. It defines the ports (IOrderRepository,
+       ICatalogPricing) here, and Infrastructure provides the adapters. -->
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Orders.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Orders.Domain\ShopFlow.Orders.Domain.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Messaging\ShopFlow.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShopFlow.Orders.UnitTests" />
+  </ItemGroup>
+
+</Project>

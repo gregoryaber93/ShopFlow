@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "Azure__UseDeveloperCredentials": "true",
+    "TASKHUB_NAME": "order-saga",
+    "DURABLE_TASK_SCHEDULER_CONNECTION_STRING": "Endpoint=http://localhost:8080;TaskHub=order-saga;Authentication=None",
+    "ServiceBus__fullyQualifiedNamespace": "sbns-shopflow-dev-weu.servicebus.windows.net",
+    "Cosmos__accountEndpoint": "https://cosmos-shopflow-dev-weu.documents.azure.com:443/",
+    "Cosmos__DatabaseName": "saga",
+    "OrdersApi__BaseUrl": "https://localhost:7001/",
+    "OrdersApi__Scope": "api://shopflow-orders/.default"
+  }
+}

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Inventory.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Messaging\ShopFlow.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+  </ItemGroup>
+
+</Project>

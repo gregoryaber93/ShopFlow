@@ -1,0 +1,95 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "orderNumber": {
+      "type": "string"
+    },
+    "warehouseCode": {
+      "type": "string"
+    },
+    "destination": {
+      "type": "object",
+      "properties": {
+        "recipientName": {
+          "type": "string"
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "city": {
+          "type": "string"
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "countryCode": {
+          "type": "string"
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "recipientName",
+        "line1",
+        "city",
+        "postalCode",
+        "countryCode"
+      ]
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          }
+        },
+        "required": [
+          "sku",
+          "quantity"
+        ]
+      }
+    },
+    "shipmentId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "orderNumber",
+    "warehouseCode",
+    "destination",
+    "lines"
+  ]
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- WHY: the Web SDK, even though this is a background process. Container Apps checks replica health with HTTP probes
+       (liveness, readiness), so the worker exposes two /health/* endpoints on Kestrel. This container's ingress is
+       disabled: the endpoints are reachable only by the platform, not from the network. -->
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Inventory.Worker</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\ShopFlow.Messaging.ServiceBus\ShopFlow.Messaging.ServiceBus.csproj" />
+  </ItemGroup>
+
+</Project>

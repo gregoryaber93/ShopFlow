@@ -1,0 +1,163 @@
+# Security: code analysis (CodeQL), dependencies, secrets, container images, infrastructure (PSRule for Azure).
+# Results go to the Security → Code scanning tab (SARIF), so new findings show up in the pull request.
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # WHY: a weekly run catches new CVEs in dependencies and base images whose code has not changed.
+  schedule:
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  codeql:
+    name: codeql (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: csharp
+            build-mode: manual
+          # Analysis of the workflows themselves: ${{ }} injection of PR data into scripts, excessive token permissions.
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-dotnet
+        if: matrix.language == 'csharp'
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      - name: Build
+        if: matrix.language == 'csharp'
+        run: dotnet build ShopFlow.slnx --configuration Release
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+
+  # WHY: a hard gate for NuGet vulnerabilities. Locally NU1901–NU1904 are warnings (Directory.Build.props), so that a CVE
+  # published today in a transitive dependency does not block the whole team; here they block the merge.
+  nuget-audit:
+    name: nuget audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-dotnet
+      - name: Restore with vulnerability gate
+        run: dotnet restore ShopFlow.slnx '-warnaserror:NU1901;NU1902;NU1903;NU1904'
+
+  dependency-review:
+    name: dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # New dependencies in a PR (including GitHub Actions): known vulnerabilities and licences outside the allowlist.
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MS-PL
+
+  # WHY: scans the commit history for keys and passwords. Push protection in the repository settings blocks known secret
+  # formats on push; this step is the second line, with its own rules and no dependency on the GitHub plan.
+  # gitleaks runs from its image (the MIT-licensed CLI); the gitleaks action for organizations requires a licence.
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        env:
+          LOG_OPTS: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || '' }}
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0 \
+            git /repo --redact --no-banner --exit-code 1 ${LOG_OPTS:+--log-opts="$LOG_OPTS"}
+
+  container-images:
+    name: image scan (${{ matrix.image.unit }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      # The same list as .github/deployables.json (containerApps + containerJobs).
+      matrix:
+        image:
+          - { unit: inventory-api, dockerfile: src/Services/Inventory/ShopFlow.Inventory.Api/Dockerfile }
+          - { unit: inventory-worker, dockerfile: src/Services/Inventory/ShopFlow.Inventory.Worker/Dockerfile }
+          - { unit: inventory-migrations, dockerfile: src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Dockerfile.migrations }
+          - { unit: readmodels-api, dockerfile: src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Api/Dockerfile }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          tags: scan/${{ matrix.image.unit }}:${{ github.sha }}
+          load: true
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image.unit }}
+
+      # Report (non-blocking) to code scanning; the block before pushing an image is in _build.yml.
+      - name: Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: scan/${{ matrix.image.unit }}:${{ github.sha }}
+          severity: CRITICAL,HIGH,MEDIUM
+          format: sarif
+          output: trivy.sarif
+
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy.sarif
+          category: image-${{ matrix.image.unit }}
+
+  # AZURE: PSRule for Azure checks the Bicep resources against the Azure Well-Architected Framework (e.g. TLS, encryption,
+  # diagnostics, availability zones). It expands .bicepparam files, so it evaluates concrete environments, not just the template.
+  infrastructure:
+    name: psrule (bicep)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      IMAGE_TAG: psrule
+      PSRULE_AZURE_BICEP_USE_AZURE_CLI: 'true'
+    steps:
+      - uses: actions/checkout@v5
+      - run: az bicep install
+      - uses: microsoft/ps-rule@v2
+        with:
+          modules: PSRule.Rules.Azure
+          option: ps-rule.yaml
+          outputFormat: Sarif
+          outputPath: reports/ps-rule.sarif
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: reports/ps-rule.sarif
+          category: psrule-azure

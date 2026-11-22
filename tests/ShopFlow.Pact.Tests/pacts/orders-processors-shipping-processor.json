@@ -1,0 +1,91 @@
+{
+  "consumer": {
+    "name": "orders-processors"
+  },
+  "messages": [
+    {
+      "contents": {
+        "carrierCode": "DPD",
+        "customerId": "0193a1b2-0000-7000-8000-00000000aa02",
+        "dispatchedAt": "2026-11-22T09:30:00.0000000+00:00",
+        "orderId": "0193a1b2-0000-7000-8000-00000000aa01",
+        "shipmentId": "0193a1b2-0000-7000-8000-00000000aa03",
+        "trackingNumber": "TRK-0001"
+      },
+      "description": "ShipmentDispatched for a confirmed order",
+      "matchingRules": {
+        "body": {
+          "$.carrierCode": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.customerId": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            ]
+          },
+          "$.dispatchedAt": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+              }
+            ]
+          },
+          "$.orderId": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            ]
+          },
+          "$.shipmentId": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            ]
+          },
+          "$.trackingNumber": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "contentType": "application/json",
+        "contractVersion": "1",
+        "subject": "ShipmentDispatched"
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.27",
+      "models": "1.2.8"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "shipping-processor"
+  }
+}

@@ -1,0 +1,50 @@
+<Project>
+
+  <PropertyGroup Label="Language and framework">
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Code quality">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- WHY: NuGet Audit reports vulnerabilities as NU190x warnings. We do not want a newly published CVE in a
+         transitive dependency to break the local build for everyone on the team. The hard gate is in
+         .github/workflows/security.yml, where the build runs with -warnaserror:NU1901;NU1902;NU1903;NU1904. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Build determinism">
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Assembly metadata">
+    <Company>ShopFlow</Company>
+    <Product>ShopFlow</Product>
+    <Authors>ShopFlow Platform Team</Authors>
+    <!-- Overridden in CI with the build number: /p:Version=1.42.0+sha.abc1234 -->
+    <Version>0.1.0-local</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Project classification">
+    <!-- *.Tests, *.UnitTests, *.IntegrationTests; but not *.Testing (fake libraries). -->
+    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('Tests'))">true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'" Label="Test projects">
+    <!-- xUnit v3: a test project is a plain executable. -->
+    <OutputType>Exe</OutputType>
+    <!-- Test names with underscores (Given_When_Then) and no ConfigureAwait are the norm in tests. -->
+    <NoWarn>$(NoWarn);CA1707;CA2007</NoWarn>
+  </PropertyGroup>
+
+</Project>

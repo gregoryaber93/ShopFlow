@@ -1,0 +1,29 @@
+{
+  "version": "2.0",
+  "telemetryMode": "OpenTelemetry",
+  "logging": {
+    "logLevel": {
+      "default": "Information",
+      "Host.Aggregator": "Warning",
+      "Azure.Core": "Warning"
+    }
+  },
+  "extensions": {
+    "serviceBus": {
+      "autoCompleteMessages": false,
+      "prefetchCount": 0,
+      "maxMessageBatchSize": 100,
+      "maxAutoLockRenewalDuration": "00:05:00"
+    },
+    "eventHubs": {
+      "maxEventBatchSize": 256,
+      "minEventBatchSize": 32,
+      "maxWaitTime": "00:00:05",
+      "batchCheckpointFrequency": 1,
+      "prefetchCount": 512,
+      "initialOffsetOptions": {
+        "type": "fromEnd"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ShopFlow.Azure\ShopFlow.Azure.csproj" />
+    <ProjectReference Include="..\..\ShopFlow.Functions\ShopFlow.Functions.csproj" />
+    <ProjectReference Include="..\..\ShopFlow.Messaging.ServiceBus\ShopFlow.Messaging.ServiceBus.csproj" />
+    <ProjectReference Include="..\..\ShopFlow.Persistence.Cosmos\ShopFlow.Persistence.Cosmos.csproj" />
+    <ProjectReference Include="..\..\ShopFlow.Resilience\ShopFlow.Resilience.csproj" />
+    <ProjectReference Include="..\..\ShopFlow.Web\ShopFlow.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+</Project>

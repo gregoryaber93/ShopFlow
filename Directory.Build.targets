@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- WHY: shared test packages in one place. A test project declares only what is specific to it (e.g.
+       Testcontainers), and versions come from Directory.Packages.props anyway. Tests run on
+       Microsoft.Testing.Platform (enabled in global.json), so Microsoft.NET.Test.Sdk and
+       xunit.runner.visualstudio, the adapters of the old VSTest platform, are not needed. -->
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="NSubstitute" />
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+    <Using Include="NSubstitute" />
+  </ItemGroup>
+
+</Project>

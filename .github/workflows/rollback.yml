@@ -1,0 +1,83 @@
+# Manual rollback of one application (docs/runbooks/deployment-rollback.md).
+#   - orders-api: another slot swap; the previous version waits in the staging slot since the last deployment,
+#   - container applications: an image with an earlier tag (commit SHA) from the registry.
+# Functions have neither slots nor images: a rollback is "Re-run jobs" on the deploy job of the previous successful release
+# (the packages artifact is kept for 30 days). Infrastructure is not rolled back automatically: reverting a change is a
+# new commit (revert) through a normal pull request.
+name: rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [dev, test, prod]
+        required: true
+      target:
+        type: choice
+        options: [orders-api, inventory-api, inventory-worker, readmodels-api]
+        required: true
+      image-tag:
+        description: Image tag (commit SHA) for a container application. Empty for orders-api.
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    name: rollback ${{ inputs.target }} (${{ inputs.environment }})
+    runs-on:
+      group: shopflow-${{ inputs.environment }}
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG_APPS: rg-shopflow-${{ inputs.environment }}-weu-apps
+    steps:
+      - name: Validate input
+        if: inputs.target != 'orders-api' && inputs.image-tag == ''
+        run: |
+          echo "::error::Provide image-tag for ${{ inputs.target }} (the commit SHA whose image is in the registry)."
+          exit 1
+
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/azure-login
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # AZURE: a swap is symmetric: the production version goes back to staging, and the previous one (in staging since the
+      # last deployment) goes back to production, warmed up just like during a deployment.
+      - name: Swap back orders-api
+        if: inputs.target == 'orders-api'
+        run: |
+          az webapp deployment slot swap --resource-group "$RG_APPS" \
+            --name "app-shopflow-orders-${{ inputs.environment }}-weu" \
+            --slot staging --target-slot production --output none
+
+      - name: Previous image
+        if: inputs.target != 'orders-api'
+        uses: ./.github/actions/deploy-containerapp
+        with:
+          app-name: ca-shopflow-${{ inputs.target }}-${{ inputs.environment }}-weu
+          resource-group: ${{ env.RG_APPS }}
+          image: ${{ vars.ACR_NAME }}.azurecr.io/${{ inputs.target }}:${{ inputs.image-tag }}
+
+      - uses: ./.github/actions/smoke-test
+        with:
+          mode: edge
+          base-url: ${{ vars.PUBLIC_API_URL }}
+
+      # WHY: after a rollback the environment no longer matches any single commit. Removing the tag makes the next release
+      # deploy all units instead of computing changes from a commit that is partly reverted.
+      - name: Forget deployed commit
+        run: az group update --name "$RG_APPS" --remove tags.deployedCommit --output none

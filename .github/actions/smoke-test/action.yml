@@ -1,0 +1,16 @@
+name: Smoke test
+description: Application readiness and basic responses after a deployment (reads only, safe in production).
+
+inputs:
+  mode:
+    description: "app: the application directly from a runner in the VNet; edge: through Front Door and APIM."
+    required: true
+  base-url:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Smoke test (${{ inputs.mode }})
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/smoke.sh" "${{ inputs.mode }}" "${{ inputs.base-url }}"

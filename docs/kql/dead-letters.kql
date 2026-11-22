@@ -1,0 +1,47 @@
+// Messages in the DLQ. Two sources:
+//   - the application (permanent failure): the shopflow.messaging.dead_lettered metric + the "dead-lettered by" log,
+//   - the broker (MaxDeliveryCountExceeded): the application does not see it; the earlier failed attempts are visible.
+// The DLQ state per entity (message count) is in the Service Bus metrics and in `shopflow-dlq peek`, not in these tables.
+
+// --- 1. What the application moved to the DLQ, per consumer and reason -----------------------------------------------
+AppMetrics
+| where TimeGenerated > ago(24h) and Name == "shopflow.messaging.dead_lettered"
+| extend Consumer = tostring(Properties["shopflow.consumer"]),
+         MessageType = tostring(Properties["shopflow.message.type"]),
+         Reason = tostring(Properties["shopflow.dead_letter.reason"])
+| summarize Count = sum(Sum), LastSeen = max(TimeGenerated) by Consumer, MessageType, Reason
+| order by Count desc
+
+// --- 2. Descriptions of permanent failures (log from ServiceBusMessageProcessor) -------------------------------------
+AppTraces
+| where TimeGenerated > ago(24h) and Message has "dead-lettered by"
+| project TimeGenerated, AppRoleName, Message, CorrelationId = tostring(Properties["CorrelationId"])
+| order by TimeGenerated desc
+
+// --- 3. Messages that exhaust their attempts (candidates for MaxDeliveryCountExceeded) -------------------------------
+// Processing with a delivery count >= 4 and an error. For commands maxDeliveryCount = 5, for input queues 10.
+AppRequests
+| where TimeGenerated > ago(24h) and Success == false
+| extend Deliveries = toint(Properties["messaging.servicebus.message.delivery_count"]),
+         MessageId = tostring(Properties["messaging.message.id"]),
+         MessageType = tostring(Properties["shopflow.message.type"])
+| where Deliveries >= 4
+| summarize MaxDelivery = max(Deliveries), LastSeen = max(TimeGenerated) by AppRoleName, MessageType, MessageId
+| order by LastSeen desc
+
+// --- 4. The history of one DLQ message (MessageId from `shopflow-dlq peek`) ------------------------------------------
+let messageId = "<MessageId>";
+union AppRequests, AppDependencies, AppExceptions
+| where TimeGenerated > ago(14d)
+| where tostring(Properties["messaging.message.id"]) == messageId
+| project TimeGenerated, AppRoleName, Name, Success, ResultCode,
+          Delivery = tostring(Properties["messaging.servicebus.message.delivery_count"]),
+          Exception = coalesce(OuterMessage, ""), OperationId
+| order by TimeGenerated asc
+
+// --- 5. The cause of transient failures that ended in the DLQ (the "Transient failure" log) --------------------------
+AppTraces
+| where TimeGenerated > ago(24h) and Message has "Transient failure"
+| parse Message with * "Transient failure (" Reason ") processing message " MessageId " (" MessageType ") in " Consumer "," *
+| summarize Count = count(), Messages = dcount(MessageId) by Consumer, MessageType, Reason
+| order by Count desc

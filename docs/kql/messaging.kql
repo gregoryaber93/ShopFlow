@@ -1,0 +1,43 @@
+// Message processing. Source: ShopFlow.Messaging (MessagingTelemetry).
+// Metrics: shopflow.messaging.published, .processed, .process.duration, .dead_lettered.
+// Dimensions: shopflow.message.type, shopflow.consumer, shopflow.outcome (handled | ignored | duplicate | failed).
+
+// --- 1. Processed messages per type and outcome (workbook: "Processed messages per type (saga funnel)") --------------
+AppMetrics
+| where TimeGenerated > ago(6h) and Name == "shopflow.messaging.processed"
+| extend MessageType = tostring(Properties["shopflow.message.type"]), Outcome = tostring(Properties["shopflow.outcome"])
+| summarize Count = sum(Sum) by bin(TimeGenerated, 5m), MessageType
+| render timechart
+
+// --- 2. Duplicate rate per consumer ----------------------------------------------------------------------------------
+// WHY: duplicates are normal (at-least-once), but a jump usually means an acknowledgement problem: the handler finishes
+// after the message lock expired, so the broker delivers it a second time, and the inbox rejects it.
+AppMetrics
+| where TimeGenerated > ago(24h) and Name == "shopflow.messaging.processed"
+| extend Consumer = tostring(Properties["shopflow.consumer"]), Outcome = tostring(Properties["shopflow.outcome"])
+| summarize Total = sum(Sum), Duplicates = sumif(Sum, Outcome == "duplicate"), Failed = sumif(Sum, Outcome == "failed") by Consumer
+| extend DuplicatePct = round(100.0 * Duplicates / Total, 2), FailedPct = round(100.0 * Failed / Total, 2)
+| order by DuplicatePct desc
+
+// --- 3. Message handling time: average and maximum per consumer and type ---------------------------------------------
+AppMetrics
+| where TimeGenerated > ago(1h) and Name == "shopflow.messaging.process.duration"
+| extend Consumer = tostring(Properties["shopflow.consumer"]), MessageType = tostring(Properties["shopflow.message.type"])
+| summarize AvgMs = round(sum(Sum) / sum(ItemCount), 1), MaxMs = max(Max) by Consumer, MessageType
+| order by MaxMs desc
+
+// --- 4. Who still processes version 1 of a contract (the sunset period, ADR-0012) ------------------------------------
+// The contract version is an attribute of the processing span (not a metric dimension), so we count spans.
+AppRequests
+| where TimeGenerated > ago(7d)
+| where isnotempty(Properties["shopflow.message.contract_version"])
+| extend MessageType = tostring(Properties["shopflow.message.type"]), Version = tostring(Properties["shopflow.message.contract_version"])
+| summarize Messages = sum(ItemCount), LastSeen = max(TimeGenerated) by AppRoleName, MessageType, Version
+| order by MessageType asc, Version asc
+
+// --- 5. Publishers: published messages per type and destination ------------------------------------------------------
+AppMetrics
+| where TimeGenerated > ago(24h) and Name == "shopflow.messaging.published"
+| extend MessageType = tostring(Properties["shopflow.message.type"]), Destination = tostring(Properties["messaging.destination.name"])
+| summarize Published = sum(Sum) by AppRoleName, Destination, MessageType
+| order by Published desc

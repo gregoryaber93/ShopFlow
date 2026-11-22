@@ -1,0 +1,31 @@
+// Outbox: publication delay and skipped documents.
+// The shopflow.outbox.lag metric (seconds from writing the record to publishing it), the shopflow.outbox.source dimension.
+// Alerts: outbox-lag (> 120 s), outbox-malformed (Critical log).
+
+// --- 1. Outbox delay per service and source --------------------------------------------------------------------------
+AppMetrics
+| where TimeGenerated > ago(6h) and Name == "shopflow.outbox.lag"
+| extend Source = tostring(Properties["shopflow.outbox.source"])
+| summarize AvgSeconds = round(sum(Sum) / sum(ItemCount), 2), MaxSeconds = max(Max) by bin(TimeGenerated, 5m), AppRoleName, Source
+| render timechart
+
+// --- 2. Cosmos relay: Change Feed batches (the "Relayed N outbox message(s)" log) ------------------------------------
+// A long gap in these entries while the API has traffic means the Change Feed trigger is not working (leases, permissions).
+AppTraces
+| where TimeGenerated > ago(1h) and Message startswith "Relayed "
+| parse Message with "Relayed " Published:int " outbox message(s) out of " Changes:int " change(s) from " Source
+| summarize Batches = count(), Published = sum(Published), Changes = sum(Changes), Last = max(TimeGenerated) by AppRoleName, Source
+
+// --- 3. Skipped, malformed outbox documents (the event was NOT published) --------------------------------------------
+AppTraces
+| where TimeGenerated > ago(7d) and SeverityLevel == 4 and Message has "is malformed and was skipped"
+| parse Message with "Outbox document " DocumentId " in " Source " is malformed" *
+| project TimeGenerated, AppRoleName, DocumentId, Source, Message
+
+// --- 4. Relay exceptions: publication failed, the Change Feed batch will be retried ----------------------------------
+AppExceptions
+| where TimeGenerated > ago(1h)
+| where AppRoleName in ("orders-processors", "payments-processor", "shipping-processor", "inventory-worker")
+| where OperationName has "outbox" or OuterMessage has "outbox" or ExceptionType has "ServiceBus"
+| summarize Count = count(), Example = take_any(OuterMessage) by AppRoleName, ExceptionType
+| order by Count desc

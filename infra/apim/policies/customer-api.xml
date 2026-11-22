@@ -1,0 +1,31 @@
+<!--
+  API for signed-in customers (orders-api, readmodels-api).
+  WHY: validating the token at the gateway is early rejection (401 at no backend cost) and the place for a per-customer
+  limit. The backend validates the token itself anyway (JwtBearer with two issuers): the gateway is not the only line of defence.
+  The __API_AUDIENCE__ and __CALLS_PER_MINUTE__ placeholders are substituted by Bicep per API (named values are global to the gateway).
+-->
+<policies>
+  <inbound>
+    <base />
+    <validate-jwt header-name="Authorization" failed-validation-httpcode="401" require-scheme="Bearer" output-token-variable-name="customerToken">
+      <openid-config url="{{customers-authority}}/.well-known/openid-configuration" />
+      <audiences>
+        <audience>__API_AUDIENCE__</audience>
+      </audiences>
+    </validate-jwt>
+    <!--
+      Limit per customer (oid), not per IP: many customers behind one mobile operator NAT do not share a limit,
+      and one customer with many devices cannot get around it.
+    -->
+    <rate-limit-by-key calls="__CALLS_PER_MINUTE__" renewal-period="60" counter-key="@(((Jwt)context.Variables["customerToken"]).Claims.GetValueOrDefault("oid", "anonymous"))" />
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

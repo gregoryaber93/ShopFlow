@@ -1,0 +1,137 @@
+{
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "orderNumber": {
+      "type": "string"
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          },
+          "unitPrice": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$"
+              },
+              "currency": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ]
+          }
+        },
+        "required": [
+          "sku",
+          "productName",
+          "quantity",
+          "unitPrice"
+        ]
+      }
+    },
+    "total": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$"
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ]
+    },
+    "shippingAddress": {
+      "type": "object",
+      "properties": {
+        "recipientName": {
+          "type": "string"
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "city": {
+          "type": "string"
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "countryCode": {
+          "type": "string"
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "recipientName",
+        "line1",
+        "city",
+        "postalCode",
+        "countryCode"
+      ]
+    },
+    "paymentMethodToken": {
+      "type": "string"
+    },
+    "submittedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "orderId",
+    "customerId",
+    "orderNumber",
+    "lines",
+    "total",
+    "shippingAddress",
+    "paymentMethodToken",
+    "submittedAt"
+  ]
+}
