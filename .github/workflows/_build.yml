@@ -19,7 +19,7 @@ jobs:
     outputs:
       images: ${{ steps.images.outputs.images }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: .github
       - id: images
@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-dotnet
 
@@ -49,7 +49,7 @@ jobs:
             echo "::endgroup::"
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: packages
           path: packages
@@ -72,13 +72,13 @@ jobs:
       LOCAL_IMAGE: local/${{ matrix.image.unit }}:${{ github.sha }}
       REMOTE_IMAGE: ${{ vars.ACR_NAME }}.azurecr.io/${{ matrix.image.unit }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Layers (NuGet restore, SDK image) from the GitHub Actions cache: later releases rebuild only the changed code.
       - name: Build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.image.dockerfile }}
@@ -92,7 +92,7 @@ jobs:
       # be deployed even manually. Vulnerabilities without a fix (ignore-unfixed) do not block a release: nothing can be done
       # about them, and the weekly scan in security.yml reports them anyway.
       - name: Scan (Trivy)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.LOCAL_IMAGE }}
           severity: CRITICAL,HIGH
@@ -120,7 +120,7 @@ jobs:
       # WHY: the attestation (SLSA provenance), signed with the workflow identity, binds the image digest to the repository, the
       # commit and the run that built it. It is stored in the registry next to the image (an OCI artifact), so you can verify
       # that an image in production came from this pipeline: gh attestation verify oci://<image> --owner shopflow-org.
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REMOTE_IMAGE }}
           subject-digest: ${{ steps.push.outputs.digest }}

@@ -15,13 +15,13 @@ runs:
           echo "NUGET_PACKAGES=${{ runner.temp }}/nuget-packages"
         } >> "$GITHUB_ENV"
 
-    - uses: actions/setup-dotnet@v5
+    - uses: actions/setup-dotnet@v6
       with:
         global-json-file: global.json
 
     # WHY: the built-in cache in setup-dotnet requires packages.lock.json files. With Central Package Management the versions
     # live in one file, so a key from Directory.Packages.props and the project files is enough.
-    - uses: actions/cache@v4
+    - uses: actions/cache@v6
       with:
         path: ${{ runner.temp }}/nuget-packages
         key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'nuget.config', '**/*.csproj') }}

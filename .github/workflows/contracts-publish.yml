@@ -23,7 +23,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # the previous contracts tag is the baseline for package validation
 
@@ -90,7 +90,7 @@ jobs:
           fi
           dotnet pack "$PROJECT" "${args[@]}"
 
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: out/*.nupkg
 

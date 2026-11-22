@@ -47,7 +47,7 @@ jobs:
       RG_APPS: rg-shopflow-${{ inputs.environment }}-weu-apps
       REGISTRY: ${{ vars.ACR_NAME }}.azurecr.io
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # history is needed to compare with the last deployed commit
 
@@ -74,7 +74,7 @@ jobs:
       - name: Changes since last deployment
         id: filter
         if: steps.base.outputs.sha != '' && !inputs.deploy-all
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           base: ${{ steps.base.outputs.sha }}
           ref: ${{ github.sha }}
@@ -102,7 +102,7 @@ jobs:
             echo "functions=$(pick functions)"
           } | tee -a "$GITHUB_OUTPUT" | sed 's/^/- /' | { echo "### Deployment plan: $ENVIRONMENT"; cat; } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: packages
           path: packages
