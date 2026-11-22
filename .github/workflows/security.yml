@@ -35,7 +35,7 @@ jobs:
           - language: actions
             build-mode: none
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-dotnet
         if: matrix.language == 'csharp'
@@ -60,7 +60,7 @@ jobs:
     name: nuget audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-dotnet
       - name: Restore with vulnerability gate
         run: dotnet restore ShopFlow.slnx '-warnaserror:NU1901;NU1902;NU1903;NU1904'
@@ -70,9 +70,9 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # New dependencies in a PR (including GitHub Actions): known vulnerabilities and licences outside the allowlist.
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
           allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MS-PL
@@ -84,7 +84,7 @@ jobs:
     name: secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: gitleaks
@@ -111,9 +111,9 @@ jobs:
           - { unit: inventory-migrations, dockerfile: src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Dockerfile.migrations }
           - { unit: readmodels-api, dockerfile: src/Services/CustomerReadModels/ShopFlow.CustomerReadModels.Api/Dockerfile }
     steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.image.dockerfile }}
@@ -124,7 +124,7 @@ jobs:
 
       # Report (non-blocking) to code scanning; the block before pushing an image is in _build.yml.
       - name: Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: scan/${{ matrix.image.unit }}:${{ github.sha }}
           severity: CRITICAL,HIGH,MEDIUM
@@ -148,7 +148,7 @@ jobs:
       IMAGE_TAG: psrule
       PSRULE_AZURE_BICEP_USE_AZURE_CLI: 'true'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: az bicep install
       - uses: microsoft/ps-rule@v2
         with:

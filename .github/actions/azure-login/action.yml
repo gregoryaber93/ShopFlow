@@ -19,7 +19,7 @@ runs:
     # are not confidential. The job must have the id-token: write permission.
     # AZURE: the access token is valid for about an hour, and the Azure CLI does not refresh it after the GitHub token expires.
     # A longer job calls this action again before the next stage (see _deploy.yml).
-    - uses: azure/login@v2
+    - uses: azure/login@v3
       with:
         client-id: ${{ inputs.client-id }}
         tenant-id: ${{ inputs.tenant-id }}

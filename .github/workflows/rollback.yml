@@ -47,7 +47,7 @@ jobs:
           echo "::error::Provide image-tag for ${{ inputs.target }} (the commit SHA whose image is in the registry)."
           exit 1
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/azure-login
         with:
