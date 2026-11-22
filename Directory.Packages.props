@@ -10,8 +10,8 @@
   <PropertyGroup Label="Version groups">
     <!-- WHY: we keep the Microsoft.Extensions.*, ASP.NET Core and EF Core packages on the 10.x line,
          matching the target runtime (.NET 10 LTS). The 11.x line requires .NET 11. -->
-    <DotNetExtensionsVersion>10.0.15</DotNetExtensionsVersion>
-    <DotNetPlatformExtensionsVersion>10.11.0</DotNetPlatformExtensionsVersion>
+    <DotNetExtensionsVersion>11.0.0</DotNetExtensionsVersion>
+    <DotNetPlatformExtensionsVersion>11.0.1</DotNetPlatformExtensionsVersion>
     <OpenTelemetryVersion>1.21.0</OpenTelemetryVersion>
   </PropertyGroup>
 
@@ -68,7 +68,7 @@
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(DotNetExtensionsVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="$(DotNetExtensionsVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(DotNetExtensionsVersion)" />
-    <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.11.1" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="11.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="$(DotNetExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="$(DotNetExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions" Version="$(DotNetExtensionsVersion)" />
